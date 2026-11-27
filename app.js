@@ -1223,31 +1223,74 @@ document.addEventListener("DOMContentLoaded", () => {
     return Array.from(value);
   }
 
+  // ตัดข้อความเป็นหน่วยสำหรับขึ้นบรรทัดใหม่
+  // ภาษาไทยไม่มีช่องว่างระหว่างคำ ถ้าตัดทีละตัวอักษรจะตัดกลางคำและแยกสระนำ (เ แ โ ใ ไ)
+  // ออกจากพยัญชนะ เช่น "จ|ะเริ่มต้น" หรือ "เ|ริ่มต้น" ทำให้อ่านผิดและตำแหน่งข้อความเพี้ยน
+  function splitWrapTokens(text) {
+    try {
+      if (typeof Intl !== "undefined" && Intl.Segmenter) {
+        const seg = new Intl.Segmenter("th", { granularity: "word" });
+        return Array.from(seg.segment(text), s => s.segment);
+      }
+    } catch (e) { /* fall through */ }
+    return splitGraphemes(text);
+  }
+
+  // คำยาวเกินความกว้างบรรทัด (เช่น URL หรือคำอังกฤษยาว) ค่อยตัดราย grapheme
+  function splitLongToken(ctx, token, maxWidth) {
+    const graphemes = splitGraphemes(token);
+    const parts = [];
+    let chunk = "";
+    graphemes.forEach(ch => {
+      const test = chunk + ch;
+      if (chunk && ctx.measureText(test).width > maxWidth) {
+        parts.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = test;
+      }
+    });
+    if (chunk) parts.push(chunk);
+    return parts;
+  }
+
   function wrapCanvasText(ctx, text, maxWidth, maxLines) {
-    const graphemes = splitGraphemes(text);
+    const tokens = [];
+    splitWrapTokens(String(text || "")).forEach(segment => {
+      segment.split(/(\n)/).forEach(piece => {
+        if (!piece) return;
+        if (piece === "\n") { tokens.push("\n"); return; }
+        if (ctx.measureText(piece).width > maxWidth) splitLongToken(ctx, piece, maxWidth).forEach(p => tokens.push(p));
+        else tokens.push(piece);
+      });
+    });
+
     const lines = [];
     let line = "";
     let i = 0;
-    for (; i < graphemes.length; i++) {
-      const ch = graphemes[i];
-      if (ch === "\n") {
+    for (; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (token === "\n") {
         lines.push(line);
         line = "";
         if (lines.length >= maxLines) { i++; break; }
         continue;
       }
-      const test = line + ch;
+      // ไม่เริ่มบรรทัดใหม่ด้วยช่องว่าง
+      if (!line && !token.trim()) continue;
+      const test = line + token;
       if (line && ctx.measureText(test).width > maxWidth) {
         lines.push(line);
-        line = ch;
+        line = token.replace(/^\s+/, "");
         if (lines.length >= maxLines) { i++; break; }
       } else {
         line = test;
       }
     }
     if (line && lines.length < maxLines) lines.push(line);
-    if (i < graphemes.length && lines.length) {
-      // ตัดทีละ grapheme เพื่อไม่ให้สระ/วรรณยุกต์ไทยหรือ emoji แตกกลางตัว
+    if (i < tokens.length && lines.length) {
+      // มีข้อความเกินจำนวนบรรทัด: ตัดท้ายด้วย … โดยตัดทีละ grapheme
+      // เพื่อไม่ให้สระ/วรรณยุกต์ไทยหรือ emoji แตกกลางตัว
       const lastGraphemes = splitGraphemes(lines[lines.length - 1]);
       while (lastGraphemes.length && ctx.measureText(lastGraphemes.join("") + "…").width > maxWidth) {
         lastGraphemes.pop();
@@ -1485,17 +1528,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = canvas.getContext("2d");
 
     paintReadingBackground(ctx, W, H, reading, 150);
-
-    try {
-      if (document.fonts) {
-        await Promise.all([
-          document.fonts.load("700 58px Cinzel"),
-          document.fonts.load("600 30px Prompt"),
-          document.fonts.load("400 24px Prompt")
-        ]).catch(() => {});
-        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 600))]);
-      }
-    } catch (e) { /* use fallback fonts */ }
 
     const gold = goldGradient(ctx, W);
     drawSigil(ctx, W / 2, 58, 28, gold);
@@ -1767,17 +1799,6 @@ document.addEventListener("DOMContentLoaded", () => {
     canvas.height = H;
     const ctx = canvas.getContext("2d");
     paintReadingBackground(ctx, W, H, reading, 90);
-
-    try {
-      if (document.fonts) {
-        await Promise.all([
-          document.fonts.load("700 58px Cinzel"),
-          document.fonts.load("600 30px Prompt"),
-          document.fonts.load("400 24px Prompt")
-        ]).catch(() => {});
-        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 600))]);
-      }
-    } catch (e) { /* use fallback fonts */ }
 
     const gold = goldGradient(ctx, W);
     drawSigil(ctx, W / 2, 44, 20, gold);
@@ -2055,8 +2076,36 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ฟอนต์ต้องพร้อมก่อนวาด: ถ้าวาดด้วยฟอนต์สำรอง ความกว้างตัวอักษรจะต่างกัน
+  // ทำให้ข้อความขึ้นบรรทัด/วางตำแหน่งเหลื่อมจากที่ควรเป็น (ชัดบนมือถือที่เน็ตช้า)
+  const SHARE_FONT_FACES = [
+    "700 58px Cinzel",
+    "500 30px Prompt",
+    "600 30px Prompt",
+    "400 24px Prompt",
+    "400 20px Prompt"
+  ];
+  let shareFontsPromise = null;
+
+  function ensureShareFontsReady(timeoutMs = 3000) {
+    if (!document.fonts) return Promise.resolve(false);
+    if (!shareFontsPromise) {
+      shareFontsPromise = (async () => {
+        await Promise.all(SHARE_FONT_FACES.map(f => document.fonts.load(f).catch(() => null)));
+        return Promise.race([
+          document.fonts.ready.then(() => true),
+          new Promise(r => setTimeout(() => r(false), timeoutMs))
+        ]);
+      })().catch(() => false);
+      // ถ้ารอจนหมดเวลาแต่ฟอนต์ยังไม่มา ให้ลองใหม่ในครั้งถัดไป
+      shareFontsPromise.then(ok => { if (!ok) shareFontsPromise = null; });
+    }
+    return shareFontsPromise;
+  }
+
   async function renderReadingImage() {
     const preset = getSharePreset();
+    const fontsReady = await ensureShareFontsReady();
     let canvas;
     try {
       canvas = await preset.builder(lastReading, true);
@@ -2065,7 +2114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       canvas = await preset.builder(lastReading, false);
     }
     const blob = await canvasToBlob(canvas);
-    return { blob, preset, filename: `tarot-${lastReading.mode}${preset.suffix}-${Date.now()}.png` };
+    return { blob, preset, fontsReady, filename: `tarot-${lastReading.mode}${preset.suffix}-${Date.now()}.png` };
   }
 
   // คืนค่า "shared" | "canceled" | "unsupported"
@@ -2106,7 +2155,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function prepareReadingImage() {
     const key = readingImageKey();
     if (!key) return Promise.reject(new Error("no reading"));
-    if (shareImageCache.key === key && shareImageCache.promise) return shareImageCache.promise;
+    const cachedIsStale = shareImageCache.key === key && shareImageCache.result
+      && shareImageCache.result.fontsReady === false;
+    if (shareImageCache.key === key && shareImageCache.promise && !cachedIsStale) return shareImageCache.promise;
     const promise = renderReadingImage().then(result => {
       if (shareImageCache.key === key) shareImageCache.result = result;
       return result;
@@ -2122,7 +2173,10 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(warmShareTimer);
     warmShareTimer = setTimeout(() => {
       if (!lastReading) return;
-      const warm = () => { prepareReadingImage().catch(() => { /* สร้างไม่ได้ก็ปล่อยให้กดแล้วสร้างใหม่ */ }); };
+      const warm = () => ensureShareFontsReady().then(ok => {
+        // ถ้าฟอนต์ยังไม่มา อย่าเพิ่งสร้างรูป เพราะจะได้ภาพที่ข้อความวางตำแหน่งเหลื่อม
+        if (ok) prepareReadingImage().catch(() => { /* สร้างไม่ได้ก็ปล่อยให้กดแล้วสร้างใหม่ */ });
+      });
       if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 2500 });
       else warm();
     }, 500);
@@ -2134,8 +2188,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!lastReading) return;
       const originalLabel = btn.innerHTML;
       const key = readingImageKey();
-      // ถ้ารูปถูกเตรียมไว้แล้ว (key ตรงกัน) จะไม่ await ก่อนเรียกชีตแชร์ → ยังอยู่ในจังหวะที่ผู้ใช้กด
-      const cached = shareImageCache.key === key ? shareImageCache.result : null;
+      // ถ้ารูปถูกเตรียมไว้แล้ว (key ตรงกัน และวาดตอนฟอนต์พร้อม) จะไม่ await ก่อนเรียกชีตแชร์
+      // → ยังอยู่ในจังหวะที่ผู้ใช้กด; รูปที่สร้างก่อนฟอนต์พร้อมต้องวาดใหม่
+      const cached = shareImageCache.key === key && shareImageCache.result
+        && shareImageCache.result.fontsReady !== false
+        ? shareImageCache.result
+        : null;
 
       btn.disabled = true;
       btn.textContent = action === "share" ? "⏳ กำลังแชร์..." : "⏳ กำลังบันทึก...";
