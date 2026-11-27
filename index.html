@@ -34,7 +34,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Prompt:wght@300;400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=3.2">
+  <link rel="stylesheet" href="style.css?v=3.5">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -147,11 +147,17 @@
           <span class="daily-lock-badge" id="daily-lock-badge" hidden>🌙 ไพ่ประจำวันนี้เปิดแล้ว</span>
         </div>
         <div class="result-actions">
-          <button id="btn-share-reading" class="btn-quick-reset btn-share-reading" title="แชร์ผลทำนายเป็นรูปภาพแนวตั้ง (สตอรี่)">
-            📸 แชร์สตอรี่
+          <div class="share-size-toggle" role="group" aria-label="เลือกขนาดรูปที่จะบันทึกหรือแชร์">
+            <button type="button" id="btn-size-story" class="share-size-btn is-active" aria-pressed="true"
+              title="รูปแนวตั้ง 1080×1920 สำหรับสตอรี่">สตอรี่</button>
+            <button type="button" id="btn-size-feed" class="share-size-btn" aria-pressed="false"
+              title="รูปจัตุรัส 1080×1080 สำหรับโพสต์ฟีด">ฟีด</button>
+          </div>
+          <button id="btn-save-image" class="btn-quick-reset btn-share-reading" title="บันทึกรูปผลทำนายลงเครื่อง / อัลบั้ม">
+            📥 บันทึกภาพ
           </button>
-          <button id="btn-share-square" class="btn-quick-reset btn-share-reading" title="แชร์ผลทำนายเป็นรูปจัตุรัส (โพสต์ฟีด)">
-            🖼️ โพสต์ฟีด
+          <button id="btn-share-image" class="btn-quick-reset btn-share-reading" title="แชร์รูปผลทำนายไปยังแอปอื่น">
+            📤 แชร์
           </button>
           <button id="btn-quick-reset" class="btn-quick-reset" title="สุ่มไพ่ใหม่ / เปิดรอบใหม่">
             <span class="quick-reset-icon">↺</span> ดูรอบใหม่
@@ -198,7 +204,10 @@
         <!-- QR Code Container -->
         <div class="qr-container truemoney-container">
           <img src="truemoney-qr.png" alt="QR Code รับโดเนท" class="truemoney-qr-img" id="truemoney-qr-img">
-          <div class="qr-amount-display" id="qr-amount-display">✨ สแกนผ่านแอปธนาคาร หรือ TrueMoney ระบุยอดตามศรัทธา ✨</div>
+          <div class="qr-amount-display" id="qr-amount-display">
+            <span class="qr-amount-title">สแกนผ่านแอปธนาคาร หรือ TrueMoney</span>
+            <span class="qr-amount-sub">ระบุยอดตามศรัทธา</span>
+          </div>
         </div>
 
         <!-- Save QR for mobile users -->
@@ -250,6 +259,6 @@
   <!-- Scripts -->
   <script src="cards-data.js?v=1.4"></script>
   <script src="promptpay.js?v=1.4"></script>
-  <script src="app.js?v=3.4"></script>
+  <script src="app.js?v=3.9"></script>
 </body>
 </html>

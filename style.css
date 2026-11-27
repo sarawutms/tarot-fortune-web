@@ -1072,7 +1072,22 @@ body {
   color: #191b35;
   font-weight: 600;
   font-size: 0.95rem;
+  line-height: 1.45;
   margin-top: 0.6rem;
+  /* ข้อความไทยไม่มีช่องว่างคั่น กันล้นกรอบการ์ดแคบๆ */
+  overflow-wrap: break-word;
+}
+
+.qr-amount-title {
+  display: block;
+}
+
+.qr-amount-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #6b7089;
 }
 
 .merchant-display {
@@ -1466,6 +1481,14 @@ body {
   color: var(--gold-primary);
 }
 
+/* เดสก์ท็อปมีพื้นที่กว้าง — ให้กล่องคำอธิบายเต็มความกว้างการ์ด
+   (เดิมจำกัด 30em ทำให้เหลือพื้นที่ว่างด้านขวาเยอะดูแปลก) */
+@media (min-width: 601px) {
+  .reversed-info-box {
+    max-width: 100%;
+  }
+}
+
 .reversed-info-lead {
   margin-bottom: 0.45rem;
 }
@@ -1559,6 +1582,45 @@ body {
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* สลับขนาดรูป (สตอรี่ / ฟีด) ก่อนกดบันทึกหรือแชร์ */
+.share-size-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(8, 9, 20, 0.55);
+  border: 1px solid rgba(243, 156, 18, 0.32);
+  border-radius: var(--radius-pill);
+}
+
+.share-size-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.22s ease, color 0.22s ease;
+}
+
+.share-size-btn:hover {
+  color: var(--gold-primary);
+}
+
+.share-size-btn.is-active {
+  background: var(--gold-primary);
+  color: #0c0e1a;
+}
+
+.share-size-btn.is-active:hover {
+  color: #0c0e1a;
 }
 
 .btn-share-reading:hover {
@@ -1673,6 +1735,10 @@ body {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 0.4rem;
     width: 100%;
+  }
+  .share-size-toggle {
+    grid-column: 1 / -1;
+    justify-self: center;
   }
   .btn-share-reading,
   .btn-quick-reset {

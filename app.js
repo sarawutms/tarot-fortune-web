@@ -6,7 +6,26 @@
 const AudioFX = (function () {
   let ctx = null;
   let noiseBuffer = null;
+  let master = null;
   let enabled = true;
+
+  // ทุกเสียงวิ่งผ่าน master gain ตัวเดียว เพื่อปรับความดังรวมโดยไม่เสียบาลานซ์ระหว่างเสียง
+  // ต่อท้ายด้วย compressor กันเสียงแตก (clipping) เวลาหลายโน้ตซ้อนกัน เช่น chime 4 ตัว
+  function getMaster(ac) {
+    if (master && master.context === ac) return master;
+    const gain = ac.createGain();
+    gain.gain.value = 2.4;
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -10;
+    comp.knee.value = 6;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.25;
+    gain.connect(comp);
+    comp.connect(ac.destination);
+    master = gain;
+    return master;
+  }
 
   try {
     enabled = localStorage.getItem("tarot_sound_on") !== "0";
@@ -35,7 +54,7 @@ const AudioFX = (function () {
     g.gain.exponentialRampToValueAtTime(o.gain, t0 + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g);
-    g.connect(ac.destination);
+    g.connect(getMaster(ac));
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
   }
@@ -69,7 +88,7 @@ const AudioFX = (function () {
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     src.connect(filter);
     filter.connect(g);
-    g.connect(ac.destination);
+    g.connect(getMaster(ac));
     src.start(t0);
     src.stop(t0 + dur + 0.02);
   }
@@ -312,8 +331,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardsShowcase = document.getElementById("cards-showcase");
   const readingDetails = document.getElementById("reading-details");
   const btnReset = document.getElementById("btn-reset-reading");
-  const btnShareReading = document.getElementById("btn-share-reading");
-  const btnShareSquare = document.getElementById("btn-share-square");
+  const btnSaveImage = document.getElementById("btn-save-image");
+  const btnShareImage = document.getElementById("btn-share-image");
+  const btnSizeStory = document.getElementById("btn-size-story");
+  const btnSizeFeed = document.getElementById("btn-size-feed");
   const dailyLockBadge = document.getElementById("daily-lock-badge");
   const btnUnlockDaily = document.getElementById("btn-unlock-daily");
   const dailyUnlockConfirm = document.getElementById("daily-unlock-confirm");
@@ -1430,6 +1451,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return h;
   }
 
+  // ข้อความ + ไอคอนวาดเอง ที่ความกว้างที่ใช้จัดวางจริง
+  // (เลี่ยง emoji ใน canvas เพราะ emoji ทำให้บรรทัดที่จัดกึ่งกลางเยื้องไปข้างหนึ่ง)
+  const ICON_TEXT_GAP = 12;
+  function iconTextWidth(ctx, text, font, iconR) {
+    ctx.font = font;
+    return iconR * 2 + ICON_TEXT_GAP + ctx.measureText(text).width;
+  }
+  function drawIconText(ctx, text, x, y, opts) {
+    const iconR = opts.iconR || 10;
+    opts.icon(x + iconR, y - iconR * 0.9, iconR);
+    ctx.textAlign = "left";
+    ctx.fillStyle = opts.color;
+    ctx.font = opts.font;
+    ctx.fillText(text, x + iconR * 2 + ICON_TEXT_GAP, y);
+    return iconTextWidth(ctx, text, opts.font, iconR);
+  }
+
   async function buildReadingCanvas(reading, includeImages = true) {
     const W = 1080;
     const H = 1920;
@@ -1441,8 +1479,13 @@ document.addEventListener("DOMContentLoaded", () => {
     paintReadingBackground(ctx, W, H, reading, 150);
 
     try {
-      if (document.fonts && document.fonts.ready) {
-        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]);
+      if (document.fonts) {
+        await Promise.all([
+          document.fonts.load("700 58px Cinzel"),
+          document.fonts.load("600 30px Prompt"),
+          document.fonts.load("400 24px Prompt")
+        ]).catch(() => {});
+        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 600))]);
       }
     } catch (e) { /* use fallback fonts */ }
 
@@ -1511,18 +1554,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const adviceLabelSize = count === 1 ? 22 : 20;
     const textLeft = 90;
     const textW = W - textLeft * 2;
-    const maxMeaning = count === 1 ? 6 : 4;
-    const maxAdvice = count === 1 ? 3 : 2;
     const textTop = cardY + cardH + (count === 1 ? 126 : 50);
     const dividerGap = count === 1 ? 50 : 36;
     const afterMeaning = count === 1 ? 20 : 18;
 
-    // รอบแรก: เลือกขนาดตัวอักษรใหญ่ที่สุดที่เนื้อหายังพอดีกับภาพ
-    // (เนื้อหาสั้น → ตัวใหญ่ขึ้น อ่านง่ายขึ้น; เนื้อหายาว → ลดลงเพื่อไม่ทับ footer)
+    // เลือกขนาดตัวอักษรใหญ่ที่สุดที่เนื้อหายังพอดีกับภาพ
+    // (เนื้อหาสั้น → ตัวใหญ่ขึ้น อ่านง่ายขึ้น; เนื้อหายาว → ลดลงหรือตัดบรรทัดเพื่อไม่ทับ footer)
     const contentLimit = H - 292 - 64;
-    const bodyCandidates = count === 1 ? [30, 28, 26] : [30, 28, 26, 24];
-    let layout = null;
-    for (const size of bodyCandidates) {
+    const buildStoryLayout = (size, maxMeaning, maxAdvice) => {
       const lineH = Math.round(size * 1.32);
       ctx.textAlign = "left";
       ctx.font = `400 ${size}px Prompt, 'Segoe UI', sans-serif`;
@@ -1542,8 +1581,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return { rev, meaningLines, adviceLines, pills, pillSize, h };
       });
       const total = blocks.reduce((sum, b) => sum + b.h, 0) + (count - 1) * dividerGap;
-      layout = { size, lineH, blocks, total };
-      if (textTop + total <= contentLimit) break;
+      return { size, lineH, blocks, total };
+    };
+
+    // ให้ความสำคัญกับเนื้อหาครบก่อน แล้วค่อยลดขนาดตัวอักษรลงจนพอดี
+    const storyConfigs = count === 1 ? [[6, 3], [5, 2], [4, 2]] : [[4, 2], [3, 2], [3, 1], [2, 1]];
+    const minBodySize = 19;
+    let layout = null;
+    for (const [maxMeaning, maxAdvice] of storyConfigs) {
+      for (let size = 30; size >= minBodySize; size--) {
+        const candidate = buildStoryLayout(size, maxMeaning, maxAdvice);
+        if (textTop + candidate.total <= contentLimit) { layout = candidate; break; }
+      }
+      if (layout) break;
+    }
+    if (!layout) {
+      const lastConfig = storyConfigs[storyConfigs.length - 1];
+      layout = buildStoryLayout(minBodySize, lastConfig[0], lastConfig[1]);
     }
 
     const bodySize = layout.size;
@@ -1635,22 +1689,23 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fill();
     });
 
-    // แถบพลังงานมงคล — ไอคอนวาดเองเพื่อให้สีทองคงที่
+    // แถบพลังงานมงคล — วัดความกว้างจริงรวมไอคอนแล้วจัดกึ่งกลางทั้งกลุ่ม
+    // (ไม่ใช้ emoji ใน canvas เพราะ emoji ทำให้บรรทัดเยื้องออกจากศูนย์)
     const luckyCard = cards[0] || {};
-    // จัดกลุ่มกับแถบปิดท้าย เพื่อให้ส่วนที่เหลืออ่านเป็น "พื้นที่หายใจ" ไม่ใช่ข้อความลอย
     const luckyY = Math.max(y + 76, H - 292);
-    const luckyFont = "600 30px Prompt, 'Segoe UI', sans-serif";
-    const drawLucky = (text, baseline, icon) => {
-      ctx.font = luckyFont;
-      const textW2 = ctx.measureText(text).width;
-      const startTx = W / 2 - textW2 / 2;
-      icon(startTx - 26, baseline - 10);
-      ctx.fillStyle = "#f7dc6f";
-      ctx.textAlign = "left";
-      ctx.fillText(text, startTx, baseline);
-    };
-    drawLucky("สีมงคล: " + (luckyCard.luckyColor || "-"), luckyY, (cx, cy) => drawSparkle(ctx, cx, cy, 12, "#f7dc6f"));
-    drawLucky("เลขนำโชค: " + (luckyCard.luckyNumber || "-"), luckyY + 46, (cx, cy) => drawDiamond(ctx, cx, cy, 12, "#f7dc6f"));
+    const luckyFont = "600 28px Prompt, 'Segoe UI', sans-serif";
+    const luckyColorText = "สีมงคล: " + (luckyCard.luckyColor || "-");
+    const luckyNumberText = "เลขนำโชค: " + (luckyCard.luckyNumber || "-");
+    const luckyColorW = iconTextWidth(ctx, luckyColorText, luckyFont, 13);
+    const luckyNumberW = iconTextWidth(ctx, luckyNumberText, luckyFont, 12);
+    drawIconText(ctx, luckyColorText, W / 2 - luckyColorW / 2, luckyY, {
+      font: luckyFont, color: "#f7dc6f", iconR: 13,
+      icon: (cx, cy, r) => drawSparkle(ctx, cx, cy, r, "#f7dc6f")
+    });
+    drawIconText(ctx, luckyNumberText, W / 2 - luckyNumberW / 2, luckyY + 44, {
+      font: luckyFont, color: "#f7dc6f", iconR: 12,
+      icon: (cx, cy, r) => drawDiamond(ctx, cx, cy, r, "#f7dc6f")
+    });
 
     // แถบปิดท้าย: แบรนด์ + วันที่อ่านไพ่
     ctx.strokeStyle = "rgba(245,176,65,0.26)";
@@ -1678,7 +1733,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // บรรทัดชวนเล่นต่อ + ลิงก์เว็บสำหรับแชร์ลงโซเชียล (จัดให้พอดีทั้งบนสตอรี่และโพสต์)
     const shareUrl = getShareUrlText();
-    const cta = `เปิดไพ่ของคุณเองฟรี ✨ ${shareUrl}`;
+    const cta = `เปิดไพ่ของคุณเองฟรี · ${shareUrl}`;
     let ctaSize = 22;
     ctx.font = `600 ${ctaSize}px Prompt, 'Segoe UI', sans-serif`;
     while (ctaSize > 15 && ctx.measureText(cta).width > W - 120) {
@@ -1706,8 +1761,13 @@ document.addEventListener("DOMContentLoaded", () => {
     paintReadingBackground(ctx, W, H, reading, 90);
 
     try {
-      if (document.fonts && document.fonts.ready) {
-        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]);
+      if (document.fonts) {
+        await Promise.all([
+          document.fonts.load("700 58px Cinzel"),
+          document.fonts.load("600 30px Prompt"),
+          document.fonts.load("400 24px Prompt")
+        ]).catch(() => {});
+        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 600))]);
       }
     } catch (e) { /* use fallback fonts */ }
 
@@ -1754,8 +1814,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const textW = W - textLeft * 2;
     const headingSize = 24;
     const afterMeaning = 10;
-    // เผื่อที่ให้แถวสีมงคล/เลขนำโชคท้ายเรื่อง
-    const contentLimit = H - 160;
+    // เผื่อที่ให้แถวสีมงคล/เลขนำโชคท้ายเรื่อง + ช่องว่างหายใจก่อน footer
+    const contentLimit = H - 190;
 
     if (count === 1) {
       const card = cards[0] || {};
@@ -1775,12 +1835,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const textTop = cardBottom + (count === 1 ? 100 : 26);
-    const maxMeaning = count === 1 ? 4 : 3;
-    const maxAdvice = 2;
-    const candidates = count === 1 ? [24, 22, 20] : [21, 20, 19, 18];
 
-    let layout = null;
-    for (const size of candidates) {
+    const buildSquareLayout = (size, maxMeaning, maxAdvice) => {
       const lineH = Math.round(size * 1.34);
       ctx.textAlign = "left";
       ctx.font = `400 ${size}px Prompt, 'Segoe UI', sans-serif`;
@@ -1794,8 +1850,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return { rev, meaningLines, adviceLines, h };
       });
       const total = blocks.reduce((sum, b) => sum + b.h, 0) + (count - 1) * 16;
-      layout = { size, lineH, blocks, total };
-      if (textTop + total <= contentLimit) break;
+      return { size, lineH, blocks, total };
+    };
+
+    // เนื้อหาต้องไม่ล้าเข้าโซน footer: ลดขนาด/จำนวนบรรทัดลงจนพอดี
+    const squareConfigs = count === 1 ? [[4, 2], [3, 2], [3, 1]] : [[3, 2], [3, 1], [2, 1]];
+    const minSquareSize = 17;
+    let layout = null;
+    for (const [maxMeaning, maxAdvice] of squareConfigs) {
+      for (let size = 24; size >= minSquareSize; size--) {
+        const candidate = buildSquareLayout(size, maxMeaning, maxAdvice);
+        if (textTop + candidate.total <= contentLimit) { layout = candidate; break; }
+      }
+      if (layout) break;
+    }
+    if (!layout) {
+      const lastConfig = squareConfigs[squareConfigs.length - 1];
+      layout = buildSquareLayout(minSquareSize, lastConfig[0], lastConfig[1]);
     }
 
     // หัวข้อทุกใบใช้ขนาดเดียวกัน — ย่อทั้งชุดถ้าชื่อไพ่ยาวที่สุดยังไม่พอดี เพื่อไม่ให้หัวข้อสูงต่ำไม่เท่ากัน
@@ -1857,21 +1928,33 @@ document.addEventListener("DOMContentLoaded", () => {
       y = adviceTop + (Math.max(1, block.adviceLines.length) - 1) * layout.lineH;
     });
 
-    // แถบปิดท้ายแบบย่อ: แถวสีมงคล/เลขนำโชค + เส้นคั่น + โลโก้ + CTA
+    // แถบปิดท้ายแบบย่อ: สีมงคล · เลขนำโชค + เส้นคั่น + โลโก้ + CTA
+    // จัดกึ่งกลางทั้งกลุ่มจากการวัดความกว้างจริง รวมไอคอนที่วาดเอง (ไม่มี emoji ใน canvas)
     const luckyCard = cards[0] || {};
-    const luckyText = "สีมงคล: " + (luckyCard.luckyColor || "-") + "   ·   เลขนำโชค: " + (luckyCard.luckyNumber || "-");
-    let luckySize = 20;
-    ctx.textAlign = "center";
-    ctx.font = `500 ${luckySize}px Prompt, 'Segoe UI', sans-serif`;
-    while (luckySize > 15 && ctx.measureText(luckyText).width > textW - 60) {
-      luckySize -= 1;
-      ctx.font = `500 ${luckySize}px Prompt, 'Segoe UI', sans-serif`;
-    }
-    const luckyW = ctx.measureText(luckyText).width;
-    const luckyBaseline = H - 130;
-    ctx.fillStyle = "#f7dc6f";
-    ctx.fillText(luckyText, W / 2, luckyBaseline);
-    drawSparkle(ctx, W / 2 - luckyW / 2 - 24, luckyBaseline - luckySize * 0.34, 9, "#f5b041");
+    const luckyFont = `600 20px Prompt, 'Segoe UI', sans-serif`;
+    const luckyColorText = "สีมงคล: " + (luckyCard.luckyColor || "-");
+    const luckyNumberText = "เลขนำโชค: " + (luckyCard.luckyNumber || "-");
+    const luckyDot = "·";
+    const luckyGap = 30;
+    ctx.font = luckyFont;
+    const luckyColorW = iconTextWidth(ctx, luckyColorText, luckyFont, 9);
+    const luckyNumberW = iconTextWidth(ctx, luckyNumberText, luckyFont, 9);
+    const luckyDotW = ctx.measureText(luckyDot).width;
+    const luckyTotalW = luckyColorW + luckyGap + luckyDotW + luckyGap + luckyNumberW;
+    let luckyX = W / 2 - luckyTotalW / 2;
+    drawIconText(ctx, luckyColorText, luckyX, H - 128, {
+      font: luckyFont, color: "#f7dc6f", iconR: 9,
+      icon: (cx, cy, r) => drawSparkle(ctx, cx, cy, r, "#f7dc6f")
+    });
+    luckyX += luckyColorW + luckyGap;
+    ctx.fillStyle = "#b9a7d9";
+    ctx.textAlign = "left";
+    ctx.fillText(luckyDot, luckyX + luckyDotW / 2, H - 128);
+    luckyX += luckyDotW + luckyGap;
+    drawIconText(ctx, luckyNumberText, luckyX, H - 128, {
+      font: luckyFont, color: "#f7dc6f", iconR: 9,
+      icon: (cx, cy, r) => drawDiamond(ctx, cx, cy, r, "#f7dc6f")
+    });
 
     const dividerY = H - 102;
     ctx.strokeStyle = "rgba(245,176,65,0.26)";
@@ -1881,6 +1964,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.lineTo(W - textLeft, dividerY);
     ctx.stroke();
 
+    // drawIconText ข้างบนตั้ง textAlign เป็น left — ต้องกลับมา center ก่อนวาดโลโก้และ CTA
+    ctx.textAlign = "center";
     ctx.fillStyle = gold;
     ctx.font = "700 30px Cinzel, Georgia, serif";
     const brandW = ctx.measureText("TAROT SANCTUARY").width;
@@ -1889,7 +1974,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillText("TAROT SANCTUARY", W / 2, H - 64);
 
     const shareUrl = getShareUrlText();
-    const squareCta = `เปิดไพ่ฟรี ✨ ${shareUrl}`;
+    const squareCta = `เปิดไพ่ฟรี · ${shareUrl}`;
     let squareCtaSize = 19;
     ctx.font = `600 ${squareCtaSize}px Prompt, 'Segoe UI', sans-serif`;
     while (squareCtaSize > 13 && ctx.measureText(squareCta).width > W - 100) {
@@ -1932,50 +2017,78 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  function wireShareButton(btn, builder, suffix) {
+  // รูปผลทำนายมี 2 ขนาด: สตอรี่ = แนวตั้ง 1080x1920, ฟีด = จัตุรัส 1080x1080
+  // ผู้ใช้เลือกขนาดด้วย toggle แล้วจึงเลือกการกระทำ: บันทึกลงเครื่อง หรือแชร์ผ่าน Web Share API
+  const SHARE_TITLE = "ผลไพ่ทาโรต์ของฉัน — Tarot Sanctuary";
+  const SHARE_TEXT = "🔮 มาเปิดไพ่ทาโรต์นำทางชีวิตกันที่ Tarot Sanctuary";
+  let shareImageSize = "story";
+
+  function getSharePreset() {
+    return shareImageSize === "feed"
+      ? { builder: buildSquareCanvas, suffix: "-square", label: "รูปจัตุรัส 1080×1080" }
+      : { builder: buildReadingCanvas, suffix: "", label: "รูปแนวตั้ง 1080×1920" };
+  }
+
+  function setShareImageSize(size) {
+    shareImageSize = size === "feed" ? "feed" : "story";
+    [[btnSizeStory, "story"], [btnSizeFeed, "feed"]].forEach(([btn, key]) => {
+      if (!btn) return;
+      const active = key === shareImageSize;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  async function renderReadingImage() {
+    const preset = getSharePreset();
+    let canvas;
+    try {
+      canvas = await preset.builder(lastReading, true);
+    } catch (imgErr) {
+      console.warn("Image share fallback (no card images):", imgErr);
+      canvas = await preset.builder(lastReading, false);
+    }
+    const blob = await canvasToBlob(canvas);
+    return { blob, preset, filename: `tarot-${lastReading.mode}${preset.suffix}-${Date.now()}.png` };
+  }
+
+  async function tryShareFile(blob, filename) {
+    if (typeof File === "undefined" || !navigator.canShare || !navigator.share) return false;
+    try {
+      const file = new File([blob], filename, { type: "image/png" });
+      if (!navigator.canShare({ files: [file] })) return false;
+      await navigator.share({ files: [file], title: SHARE_TITLE, text: SHARE_TEXT });
+      return true;
+    } catch (shareErr) {
+      // ผู้ใช้กดยกเลิกในชีตแชร์ = ถือว่าจบแล้ว ไม่ต้องดาวน์โหลดซ้ำ
+      return !!(shareErr && shareErr.name === "AbortError");
+    }
+  }
+
+  function wireImageAction(btn, action) {
     if (!btn) return;
     btn.addEventListener("click", async () => {
       if (!lastReading) return;
       const originalLabel = btn.innerHTML;
       btn.disabled = true;
-      btn.textContent = "⏳ กำลังสร้างรูป...";
+      btn.textContent = action === "share" ? "⏳ กำลังแชร์..." : "⏳ กำลังบันทึก...";
       try {
-        let canvas;
-        try {
-          canvas = await builder(lastReading, true);
-        } catch (imgErr) {
-          console.warn("Image share fallback (no card images):", imgErr);
-          canvas = await builder(lastReading, false);
-        }
-        const blob = await canvasToBlob(canvas);
-        const filename = `tarot-${lastReading.mode}${suffix}-${Date.now()}.png`;
-        let shared = false;
-        if (typeof File !== "undefined" && navigator.canShare && navigator.share) {
-          try {
-            const file = new File([blob], filename, { type: "image/png" });
-            if (navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                files: [file],
-                title: "ผลไพ่ทาโรต์ของฉัน",
-                text: "🔮 มาดูไพ่ทาโรต์ของฉันกันที่ Tarot Sanctuary"
-              });
-              shared = true;
-              showToast("✨ แชร์รูปผลไพ่เรียบร้อยแล้ว");
-            }
-          } catch (shareErr) {
-            if (shareErr && shareErr.name === "AbortError") {
-              shared = true;
-            }
+        const { blob, preset, filename } = await renderReadingImage();
+        if (action === "share") {
+          if (await tryShareFile(blob, filename)) {
+            showToast("✨ เปิดหน้าต่างแชร์แล้ว — เลือกแอปที่ต้องการได้เลย");
+          } else {
+            downloadBlob(blob, filename);
+            showToast(`📥 เบราว์เซอร์นี้แชร์ไฟล์ไม่ได้ — บันทึก${preset.label}ให้แล้ว`);
           }
-        }
-        if (!shared) {
+        } else {
           downloadBlob(blob, filename);
-          showToast("📸 บันทึกรูปผลไพ่ลงเครื่องแล้ว — นำไปแชร์ต่อได้เลย");
+          showToast(`📥 บันทึก${preset.label}แล้ว`);
         }
         AudioFX.success();
         haptic(12);
       } catch (err) {
-        console.error("Share image error:", err);
+        console.error("Image action error:", err);
         showToast("ขออภัย สร้างรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "error");
       } finally {
         btn.disabled = false;
@@ -1984,8 +2097,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  wireShareButton(btnShareReading, buildReadingCanvas, "");
-  wireShareButton(btnShareSquare, buildSquareCanvas, "-square");
+  if (btnSizeStory) btnSizeStory.addEventListener("click", () => setShareImageSize("story"));
+  if (btnSizeFeed) btnSizeFeed.addEventListener("click", () => setShareImageSize("feed"));
+  setShareImageSize("story");
+  wireImageAction(btnSaveImage, "save");
+  wireImageAction(btnShareImage, "share");
 
   // Reset Reading with Smooth Fade-Out & Auto Shuffle
   // ป้าย "ไพ่ประจำวันนี้เปิดแล้ว" และปุ่มปลดล็อก (ปุ่มจะโผล่เมื่อกด "ดูรอบใหม่" ขณะยังล็อกอยู่)
@@ -2201,15 +2317,205 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ==========================================
-  // DONATION & QR SAVE LOGIC
+  // DONATION & FRAMED QR CARD LOGIC
   // ==========================================
-  // Save QR as image (uses Web Share API on mobile to save directly to Photos / Gallery)
+  // ภาพ QR ถูกฝังมาเป็น data URI เพราะถ้าโหลด PNG จากไฟล์ตรงๆ แล้ววาดลง canvas
+  // เมื่อเปิดเว็บผ่าน file:// canvas จะถูก taint แล้ว export ไม่ได้
+  // (SecurityError: Tainted canvases may not be exported) — data URI ไม่มีปัญหาเรื่องนี้
+  // ต้นฉบับ 632x632 ถูกบีบอัดแบบ palette เหลือ ~11KB โดยภาพแทบไม่ต่างจากเดิม
+  const QR_IMAGE_DATA_URI =
+    "data:image/png;base64,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";
+
+  function loadQrImage() {
+    return new Promise(resolve => {
+      const img = new Image();
+      let settled = false;
+      const finish = value => {
+        if (!settled) { settled = true; resolve(value); }
+      };
+      img.onload = () => finish(img);
+      img.onerror = () => finish(null);
+      setTimeout(() => finish(null), 3000);
+      img.src = QR_IMAGE_DATA_URI;
+    });
+  }
+
+  // สร้างการ์ด QR Code รับเงินแบบมีกรอบทองสวยงาม สำหรับบันทึกลง Photos
+  async function buildDonationCardCanvas() {
+    const W = 900;
+    const H = 1200;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    try {
+      if (document.fonts) {
+        await Promise.all([
+          document.fonts.load("700 32px Cinzel"),
+          document.fonts.load("600 20px Prompt"),
+          document.fonts.load("400 18px Prompt")
+        ]).catch(() => {});
+        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 800))]);
+      }
+    } catch (e) { /* use fallback fonts */ }
+
+    // พื้นหลังโทนสว่าง สะอาดตา แบบหน้าจอ QR ของแอปธนาคาร
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#f8f5ef");
+    bg.addColorStop(0.55, "#eef1f8");
+    bg.addColorStop(1, "#e5eaf4");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const glow = ctx.createRadialGradient(W / 2, 70, 20, W / 2, 70, W * 0.72);
+    glow.addColorStop(0, "rgba(245,176,65,0.24)");
+    glow.addColorStop(1, "rgba(245,176,65,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, 520);
+
+    // การ์ดขาวหลักพร้อมเงา
+    const cardX = 46;
+    const cardY = 46;
+    const cardW = W - 92;
+    const cardH = H - 92;
+    ctx.save();
+    ctx.shadowColor = "rgba(20, 28, 56, 0.16)";
+    ctx.shadowBlur = 42;
+    ctx.shadowOffsetY = 18;
+    ctx.fillStyle = "#ffffff";
+    roundRectPath(ctx, cardX, cardY, cardW, cardH, 36);
+    ctx.fill();
+    ctx.restore();
+
+    const gold = goldGradient(ctx, W);
+
+    // หัวการ์ด: โลโก้ + ชื่อร้าน + คำอธิบาย
+    drawSigil(ctx, W / 2, 112, 18, gold);
+    ctx.textAlign = "center";
+    ctx.fillStyle = gold;
+    ctx.font = "700 32px Cinzel, Georgia, serif";
+    ctx.fillText("TAROT SANCTUARY", W / 2, 166);
+
+    ctx.fillStyle = "#6b7690";
+    ctx.font = "400 19px Prompt, 'Segoe UI', sans-serif";
+    ctx.fillText("ร่วมสนับสนุนตามจิตศรัทธา", W / 2, 198);
+
+    // กรอบ QR สไตล์แอปธนาคาร: พื้นขาว มุมโค้ง + วงเล็บมุมทอง
+    const qrPanel = 540;
+    const qrPanelX = (W - qrPanel) / 2;
+    const qrPanelY = 226;
+    roundRectPath(ctx, qrPanelX, qrPanelY, qrPanel, qrPanel, 26);
+    ctx.fillStyle = "#fbfcff";
+    ctx.fill();
+    ctx.strokeStyle = "#e6e9f2";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const qrImg = await loadQrImage();
+
+    const qrSize = 452;
+    const qrX = (W - qrSize) / 2;
+    const qrY = qrPanelY + (qrPanel - qrSize) / 2;
+    if (qrImg) {
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    } else {
+      // ถ้าโหลดรูป QR ไม่ได้ ให้กรอบว่างแทน ไม่ให้การ์ดพัง
+      roundRectPath(ctx, qrX, qrY, qrSize, qrSize, 18);
+      ctx.fillStyle = "#f1f3f9";
+      ctx.fill();
+      ctx.fillStyle = "#8b93a8";
+      ctx.font = "400 20px Prompt, 'Segoe UI', sans-serif";
+      ctx.fillText("โหลด QR ไม่สำเร็จ", W / 2, qrY + qrSize / 2);
+    }
+
+    // วงเล็บมุมทอง รอบ QR (แบบกรอบสแกนของแอปธนาคาร)
+    const bracketInset = 22;
+    const bracketLen = 40;
+    const bx1 = qrPanelX + bracketInset;
+    const by1 = qrPanelY + bracketInset;
+    const bx2 = qrPanelX + qrPanel - bracketInset;
+    const by2 = qrPanelY + qrPanel - bracketInset;
+    ctx.strokeStyle = "#d9a33a";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    [[bx1, by1, 1, 1], [bx2, by1, -1, 1], [bx1, by2, 1, -1], [bx2, by2, -1, -1]].forEach(([x, y, dx, dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + dx * bracketLen, y);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x, y + dy * bracketLen);
+      ctx.stroke();
+    });
+    ctx.lineCap = "butt";
+
+    // คำอธิบายใต้ QR
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#1b2540";
+    ctx.font = "600 21px Prompt, 'Segoe UI', sans-serif";
+    ctx.fillText("สแกนด้วยแอปธนาคาร หรือ TrueMoney Wallet", W / 2, 812);
+
+    ctx.fillStyle = "#8b93a8";
+    ctx.font = "400 16px Prompt, 'Segoe UI', sans-serif";
+    ctx.fillText("ระบุยอดตามจิตศรัทธาได้เลย", W / 2, 842);
+
+    // เส้นคั่น + รายละเอียดแบบสลิป
+    const rowLeft = 150;
+    const rowRight = W - 150;
+    ctx.strokeStyle = "#eceef5";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(rowLeft, 872);
+    ctx.lineTo(rowRight, 872);
+    ctx.stroke();
+
+    const rows = [
+      ["ผู้รับ", "Tarot Sanctuary"],
+      ["ช่องทาง", "TrueMoney Wallet"],
+      ["ยอดชำระ", "ตามจิตศรัทธา"]
+    ];
+    rows.forEach(([label, value], i) => {
+      const ry = 912 + i * 38;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#8b93a8";
+      ctx.font = "400 18px Prompt, 'Segoe UI', sans-serif";
+      ctx.fillText(label, rowLeft, ry);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#1b2540";
+      ctx.font = "600 19px Prompt, 'Segoe UI', sans-serif";
+      ctx.fillText(value, rowRight, ry);
+    });
+
+    // ข้อความขอบคุณ (ไอคอนวาดเอง จัดกึ่งกลางทั้งกลุ่ม)
+    const thanksText = "ขอบคุณสำหรับน้ำใจที่สนับสนุนค่าครู";
+    const thanksFont = "600 18px Prompt, 'Segoe UI', sans-serif";
+    const thanksW = iconTextWidth(ctx, thanksText, thanksFont, 8) + 46;
+    const thanksX = W / 2 - thanksW / 2;
+    drawSparkle(ctx, thanksX + 8, 1035, 8, "#d9a33a");
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#8a6a1f";
+    ctx.font = thanksFont;
+    ctx.fillText(thanksText, thanksX + 26, 1042);
+    drawSparkle(ctx, thanksX + thanksW - 20, 1035, 8, "#d9a33a");
+
+    // ลิงก์เว็บไซต์ท้ายการ์ด
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#9aa3b8";
+    ctx.font = "400 16px Prompt, 'Segoe UI', sans-serif";
+    ctx.fillText("ไพ่ทาโรต์นำทางชีวิต · " + getShareUrlText(), W / 2, 1096);
+
+    return canvas;
+  }
+
+  // Save QR as beautiful framed card (uses Web Share API on mobile to save directly to Photos / Gallery)
   if (btnSaveQR) {
     btnSaveQR.addEventListener("click", async () => {
+      const origText = btnSaveQR.textContent;
+      btnSaveQR.disabled = true;
+      btnSaveQR.textContent = "⏳ กำลังสร้างการ์ด QR...";
       try {
-        const res = await fetch("truemoney-qr.png");
-        const blob = await res.blob();
-        const filename = `tarot-qr-${Date.now()}.png`;
+        const canvas = await buildDonationCardCanvas();
+        const blob = await canvasToBlob(canvas);
+        const filename = `tarot-donation-qr-${Date.now()}.png`;
 
         let savedViaShare = false;
         if (typeof File !== "undefined" && navigator.canShare && navigator.share) {
@@ -2218,8 +2524,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (navigator.canShare({ files: [file] })) {
               await navigator.share({
                 files: [file],
-                title: "QR Code ค่าครูตามศรัทธา",
-                text: "บันทึกภาพ QR Code เพื่อสแกนในแอปธนาคารหรือ TrueMoney"
+                title: "QR Code ค่าครูตามศรัทธา — Tarot Sanctuary",
+                text: "การ์ด QR Code ร่วมสนับสนุนค่าครูตามจิตศรัทธา"
               });
               savedViaShare = true;
               AudioFX.success();
@@ -2228,21 +2534,23 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           } catch (shareErr) {
             if (shareErr && shareErr.name === "AbortError") {
-              savedViaShare = true; // ผู้ใช้กดยกเลิก share sheet เอง
+              savedViaShare = true;
             }
           }
         }
 
         if (!savedViaShare) {
-          // Fallback สำหรับ Desktop หรือบราวเซอร์ที่ไม่รองรับ Web Share
           downloadBlob(blob, filename);
           AudioFX.success();
           haptic(10);
-          showToast("📥 บันทึกรูป QR เรียบร้อยแล้ว (หรือแตะค้างที่รูป QR เพื่อบันทึกลง Photos)");
+          showToast("📥 บันทึกการ์ด QR ลงเครื่องเรียบร้อยแล้ว");
         }
       } catch (err) {
         console.error("Save QR error:", err);
-        showToast("แตะค้างที่รูป QR เพื่อบันทึกลงแอปรูปภาพ (Photos) ได้โดยตรงครับ", "error");
+        showToast("บันทึกรูปไม่สำเร็จ แตะค้างที่รูป QR เพื่อบันทึกลง Photos ได้ครับ", "error");
+      } finally {
+        btnSaveQR.disabled = false;
+        btnSaveQR.textContent = origText;
       }
     });
   }
