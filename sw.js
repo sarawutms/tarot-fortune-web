@@ -1,15 +1,15 @@
 /* Tarot Sanctuary — Service Worker (offline cache)
    ใช้ได้เฉพาะเมื่อเปิดผ่าน http/https เท่านั้น (file:// ไม่รองรับ service worker) */
 
-const CACHE_VERSION = "tarot-v36";
+const CACHE_VERSION = "tarot-v37";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./style.css?v=3.5",
+  "./style.css?v=3.6",
   "./cards-data.js?v=1.4",
   "./promptpay.js?v=1.4",
-  "./app.js?v=4.2",
+  "./app.js?v=4.3",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",

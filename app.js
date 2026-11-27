@@ -1851,15 +1851,23 @@ document.addEventListener("DOMContentLoaded", () => {
       dateText = new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
     } catch (e) { /* locale ไม่รองรับ */ }
     ctx.fillStyle = "#a8b2d1";
-    ctx.font = "400 22px Prompt, 'Segoe UI', sans-serif";
-    ctx.fillText("ไพ่ทาโรต์นำทางชีวิต" + (dateText ? " · อ่านเมื่อ " + dateText : ""), W / 2, H - 84);
+    // เผื่อที่ให้ประกาย/กรอบทองสองข้าง: ข้อความต้องไม่ล้ำออกนอกกรอบแม้ฟอนต์จะกว้างกว่าเดิม
+    const footerMaxW = W - textLeft * 2 - 80;
+    let dateSize = 22;
+    const dateLine = "ไพ่ทาโรต์นำทางชีวิต" + (dateText ? " · อ่านเมื่อ " + dateText : "");
+    ctx.font = `400 ${dateSize}px Prompt, 'Segoe UI', sans-serif`;
+    while (dateSize > 16 && ctx.measureText(dateLine).width > footerMaxW) {
+      dateSize -= 1;
+      ctx.font = `400 ${dateSize}px Prompt, 'Segoe UI', sans-serif`;
+    }
+    ctx.fillText(dateLine, W / 2, H - 84);
 
     // บรรทัดชวนเล่นต่อ + ลิงก์เว็บสำหรับแชร์ลงโซเชียล (จัดให้พอดีทั้งบนสตอรี่และโพสต์)
     const shareUrl = getShareUrlText();
     const cta = `เปิดไพ่ของคุณเองฟรี · ${shareUrl}`;
     let ctaSize = 22;
     ctx.font = `600 ${ctaSize}px Prompt, 'Segoe UI', sans-serif`;
-    while (ctaSize > 15 && ctx.measureText(cta).width > W - 120) {
+    while (ctaSize > 15 && ctx.measureText(cta).width > footerMaxW) {
       ctaSize -= 1;
       ctx.font = `600 ${ctaSize}px Prompt, 'Segoe UI', sans-serif`;
     }
@@ -2096,7 +2104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const squareCta = `เปิดไพ่ฟรี · ${shareUrl}`;
     let squareCtaSize = 19;
     ctx.font = `600 ${squareCtaSize}px Prompt, 'Segoe UI', sans-serif`;
-    while (squareCtaSize > 13 && ctx.measureText(squareCta).width > W - 100) {
+    while (squareCtaSize > 13 && ctx.measureText(squareCta).width > W - 2 * textLeft - 40) {
       squareCtaSize -= 1;
       ctx.font = `600 ${squareCtaSize}px Prompt, 'Segoe UI', sans-serif`;
     }
@@ -2170,19 +2178,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // ฟอนต์ต้องพร้อมก่อนวาด: ถ้าวาดด้วยฟอนต์สำรอง ความกว้างตัวอักษรจะต่างกัน
   // ทำให้ข้อความขึ้นบรรทัด/วางตำแหน่งเหลื่อมจากที่ควรเป็น (ชัดบนมือถือที่เน็ตช้า)
   const SHARE_FONT_FACES = [
-    "700 58px Cinzel",
+    "700 40px Cinzel",
     "500 30px Prompt",
+    "600 22px Prompt",
     "600 30px Prompt",
+    "400 22px Prompt",
     "400 24px Prompt",
     "400 20px Prompt"
   ];
   let shareFontsPromise = null;
+  // Google Fonts แบ่ง Prompt เป็น subset (latin / thai) — ถ้าโหลดโดยไม่บอกข้อความตัวอย่าง
+  // เบราว์เซอร์จะโหลดเฉพาะ subset ของข้อความตัวอย่าง (latin) ทำให้วัดความกว้างคำไทย
+  // ด้วยฟอนต์สำรอง แล้วพอ subset ไทยมาถึงระหว่างวาด บรรทัดจะยาวเกินและล้นออกขวา
+  const SHARE_FONT_SAMPLE = "ไพ่ทาโรต์นำทางชีวิต อ่านเมื่อ ๑๒๓ TAROT";
+
+  // ตรวจซ้ำว่าฟอนต์พร้อมจริง ณ ตอนนี้ (รวม subset ไทย ไม่ใช่แค่เคยรอจนหมดเวลา)
+  function shareFontsLoaded() {
+    if (!document.fonts || !document.fonts.check) return false;
+    return SHARE_FONT_FACES.every(face => {
+      try { return document.fonts.check(face, SHARE_FONT_SAMPLE); } catch (e) { return false; }
+    });
+  }
 
   function ensureShareFontsReady(timeoutMs = 3000) {
     if (!document.fonts) return Promise.resolve(false);
     if (!shareFontsPromise) {
       shareFontsPromise = (async () => {
-        await Promise.all(SHARE_FONT_FACES.map(f => document.fonts.load(f).catch(() => null)));
+        await Promise.all(SHARE_FONT_FACES.map(f =>
+          document.fonts.load(f, SHARE_FONT_SAMPLE).catch(() => null)
+        ));
         return Promise.race([
           document.fonts.ready.then(() => true),
           new Promise(r => setTimeout(() => r(false), timeoutMs))
@@ -2194,15 +2218,29 @@ document.addEventListener("DOMContentLoaded", () => {
     return shareFontsPromise;
   }
 
-  async function renderReadingImage() {
-    const preset = getSharePreset();
-    const fontsReady = await ensureShareFontsReady();
-    let canvas;
+  async function buildShareCanvas(preset) {
     try {
-      canvas = await preset.builder(lastReading, true);
+      return await preset.builder(lastReading, true);
     } catch (imgErr) {
       console.warn("Image share fallback (no card images):", imgErr);
-      canvas = await preset.builder(lastReading, false);
+      return await preset.builder(lastReading, false);
+    }
+  }
+
+  async function renderReadingImage() {
+    const preset = getSharePreset();
+    let fontsReady = await ensureShareFontsReady();
+    let canvas = await buildShareCanvas(preset);
+    // ถ้าฟอนต์มาไม่ทันตอนวาด ช่องว่างข้อความถูกวัดด้วยฟอนต์สำรอง
+    // พอฟอนต์จริงมาถึงระหว่างวาด บรรทัดจะยาวกว่าที่วัดไว้และล้นออกนอกกรอบด้านขวา
+    // จึงวาดใหม่อีกครั้งทันทีที่ฟอนต์พร้อม (ก่อนแปลงเป็นไฟล์)
+    if (!fontsReady) {
+      // เครื่องที่เน็ตช้าโหลดฟอนต์ไม่ทันในรอบแรก — ให้เวลาอีกเล็กน้อยแล้ววาดใหม่
+      await new Promise(r => setTimeout(r, 800));
+      if (shareFontsLoaded()) {
+        fontsReady = true;
+        canvas = await buildShareCanvas(preset);
+      }
     }
     const blob = await canvasToBlob(canvas);
     return { blob, preset, fontsReady, filename: `tarot-${lastReading.mode}${preset.suffix}-${Date.now()}.png` };
