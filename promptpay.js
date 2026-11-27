@@ -99,8 +99,9 @@ const QRCodeLib = (function() {
     getModuleCount: function() { return this.moduleCount; },
     make: function() {
       if (this.typeNumber < 1) {
+        let maxType = QRRSBlock.RS_BLOCK_TABLE.length;
         let typeNumber = 1;
-        for (typeNumber = 1; typeNumber < 40; typeNumber++) {
+        for (typeNumber = 1; typeNumber <= maxType; typeNumber++) {
           let rsBlocks = QRRSBlock.getRSBlocks(typeNumber, this.errorCorrectLevel);
           let buffer = new QRBitBuffer();
           let totalDataCount = 0;
@@ -114,6 +115,9 @@ const QRCodeLib = (function() {
             data.write(buffer);
           }
           if (buffer.getLengthInBits() <= totalDataCount * 8) break;
+        }
+        if (typeNumber > maxType) {
+          throw new Error("QR data too long for supported RS_BLOCK_TABLE");
         }
         this.typeNumber = typeNumber;
       }
@@ -513,20 +517,29 @@ const QRCodeLib = (function() {
       qr.addData(text);
       qr.make();
       let moduleCount = qr.getModuleCount();
-      canvas.width = size;
-      canvas.height = size;
+
+      // Render at device pixel ratio so the QR stays crisp on retina screens
+      let dpr = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.width = Math.round(size * dpr);
+      canvas.height = Math.round(size * dpr);
+      canvas.style.width = size + "px";
+      canvas.style.height = size + "px";
+
       let ctx = canvas.getContext("2d");
-      let tile = size / (moduleCount + 4); // 2 modules quiet zone
-      
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      let quiet = 4; // EMVCo / QR spec recommends a 4-module quiet zone
+      let tile = size / (moduleCount + quiet * 2);
+
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, size, size);
       ctx.fillStyle = "#0c0e1a"; // deep dark navy
-      
+
       for (let r = 0; r < moduleCount; r++) {
         for (let c = 0; c < moduleCount; c++) {
           if (qr.isDark(r, c)) {
-            let x = Math.round((c + 2) * tile);
-            let y = Math.round((r + 2) * tile);
+            let x = Math.round((c + quiet) * tile);
+            let y = Math.round((r + quiet) * tile);
             let w = Math.ceil(tile);
             let h = Math.ceil(tile);
             ctx.fillRect(x, y, w, h);

@@ -3,8 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tarot Sanctuary - ไพ่ทาโรต์นำทางชีวิต &amp; ค่าครูตามศรัทธา</title>
-  <link rel="stylesheet" href="style.css?v=1.3">
+  <title>Tarot Sanctuary - ไพ่ทาโรต์นำทางชีวิต</title>
+  <meta name="description" content="เปิดไพ่ทาโรต์ออนไลน์ฟรี 22 ใบใหญ่ พร้อมคำทำนายความรัก การงาน การเงิน และคำแนะนำจากจักรวาล เลือกไพ่ประจำวันหรือไพ่ 3 ใบได้ทันที">
+  <meta name="theme-color" content="#080914">
+
+  <!-- PWA: ติดตั้งลงหน้าจอโฮมได้ (ต้องเปิดผ่าน http/https ไม่ใช่ file://) -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tarot Sanctuary">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Tarot Sanctuary">
+  <meta property="og:locale" content="th_TH">
+  <meta property="og:url" content="https://sarawutms.github.io/tarot-fortune-web/">
+  <meta property="og:title" content="Tarot Sanctuary — ไพ่ทาโรต์นำทางชีวิต">
+  <meta property="og:description" content="เปิดไพ่ทาโรต์ฟรี 22 ใบใหญ่ พร้อมคำทำนายความรัก การงาน และคำแนะนำจากจักรวาล">
+  <meta property="og:image" content="https://sarawutms.github.io/tarot-fortune-web/og-cover.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tarot Sanctuary — ไพ่ทาโรต์นำทางชีวิต">
+  <meta name="twitter:description" content="เปิดไพ่ทาโรต์ฟรี 22 ใบใหญ่ พร้อมคำทำนายความรัก การงาน และคำแนะนำจากจักรวาล">
+  <meta name="twitter:image" content="https://sarawutms.github.io/tarot-fortune-web/og-cover.jpg">
+
+  <!-- โหลดฟอนต์ผ่าน <link> เพื่อให้ browser ค้นหา connection ล่วงหน้าได้
+       (ย้ายออกจาก @import ใน style.css ที่บล็อกการ render) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Prompt:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css?v=2.5">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -14,8 +44,8 @@
 
   <!-- Header -->
   <header class="app-header">
-    <button id="btn-settings-trigger" class="settings-trigger" title="ตั้งค่าบัญชีพร้อมเพย์">
-      ⚙️
+    <button id="btn-sound-toggle" class="settings-trigger sound-trigger" title="เปิด/ปิดเสียงประกอบ" aria-label="เปิดหรือปิดเสียงประกอบ" aria-pressed="true">
+      🔊
     </button>
     <h1 class="app-title">TAROT SANCTUARY</h1>
     <p class="app-subtitle">✦ ไพ่ทาโรต์นำทางชีวิต เปิดใจรับสารจากจักรวาล ✦</p>
@@ -48,6 +78,34 @@
           <span class="mode-icon">🔮</span>
           <div class="mode-title">ถามคำถามในใจ</div>
           <div class="mode-desc">ตั้งจิตอธิษฐานแล้วเปิดไพ่หาคำตอบ</div>
+        </div>
+      </div>
+
+      <!-- Reversed Cards Toggle -->
+      <div class="reversed-row">
+        <label class="reversed-toggle" for="toggle-reversed">
+          <input type="checkbox" id="toggle-reversed">
+          <span class="reversed-toggle-text">🃏 ไพ่กลับหัว (Reversed)</span>
+        </label>
+        <button type="button" id="btn-reversed-info" class="reversed-info-btn" aria-expanded="false" aria-controls="reversed-info-box" aria-label="คำอธิบายไพ่กลับหัว" title="ไพ่กลับหัวคืออะไร?">?</button>
+        <span class="reversed-hint">เปิดเพื่อเพิ่มมิติคำทำนาย — โอกาสกลับหัว 50%</span>
+        <div class="reversed-info-box" id="reversed-info-box">
+          <p class="reversed-info-lead">
+            <strong>ไพ่กลับหัว (Reversed)</strong> มิได้หมายถึงลางร้าย หรือตรงข้ามกับความหมายเดิมเสมอไป —
+            ทว่าคืออีกด้านของไพ่ใบเดิม พลังงานเดียวกันที่หมุนกลับทิศ เช่น:
+          </p>
+          <ul class="reversed-info-list">
+            <li><strong>ชะลอหรือติดขัด:</strong> เส้นทางยังไม่เปิด ต้องรอจังหวะหรือคลี่ปมที่ต้นเหตุ</li>
+            <li><strong>ล้นเกินหรือพร่องไป:</strong> ไฟแห่งความกล้าอาจลุกโชนจนประมาท หรือริบหรี่จนกลายเป็นความลังเล</li>
+            <li><strong>จุดที่ควรหันกลับมามอง:</strong> กระจกที่สะท้อนจุดบอดและความไม่สมดุลในใจ</li>
+          </ul>
+          <p class="reversed-info-foot">
+            ในแอปนี้ ใบที่กลับหัวจะปรากฏป้าย “กลับหัว” และคำทำนายจะเผยความหมายอีกด้านของใบนั้นทันที —
+            จงใช้เป็นแสงส่องทาง มากกว่าคำตัดสินสุดท้าย
+          </p>
+          <div class="reversed-info-example">
+            <strong>ตัวอย่าง (The Fool):</strong> หัวตั้ง = ก้าวแรกด้วยหัวใจเปิดกว้าง · กลับหัว = ก้าวออกไปโดยยังไม่วางแผนรับมือ
+          </div>
         </div>
       </div>
 
@@ -86,15 +144,39 @@
       <div class="result-header">
         <div class="result-badge-group">
           <span class="result-badge">✦ ไพ่ที่คุณเปิดได้ ✦</span>
+          <span class="daily-lock-badge" id="daily-lock-badge" hidden>🌙 ไพ่ประจำวันนี้เปิดแล้ว</span>
         </div>
-        <button id="btn-quick-reset" class="btn-quick-reset" title="สุ่มไพ่ใหม่ / เปิดรอบใหม่">
-          <span class="quick-reset-icon">↺</span> ดูรอบใหม่
-        </button>
+        <div class="result-actions">
+          <button id="btn-share-reading" class="btn-quick-reset btn-share-reading" title="แชร์ผลทำนายเป็นรูปภาพแนวตั้ง (สตอรี่)">
+            📸 แชร์ผลไพ่
+          </button>
+          <button id="btn-share-square" class="btn-quick-reset btn-share-reading" title="แชร์ผลทำนายเป็นรูปจัตุรัส (โพสต์ฟีด)">
+            🖼️ โพสต์ฟีด
+          </button>
+          <button id="btn-quick-reset" class="btn-quick-reset" title="สุ่มไพ่ใหม่ / เปิดรอบใหม่">
+            <span class="quick-reset-icon">↺</span> ดูรอบใหม่
+          </button>
+        </div>
       </div>
 
       <!-- 3D Card Showcase -->
       <div class="cards-showcase" id="cards-showcase">
         <!-- Flipped 3D cards injected here -->
+      </div>
+
+      <!-- ปุ่มปลดล็อกไพ่ประจำวัน — โผล่ใต้ไพ่เมื่อกด "ดูรอบใหม่" ขณะยังล็อกอยู่ -->
+      <div class="daily-unlock-slot">
+        <button id="btn-unlock-daily" class="btn-unlock-daily" type="button" hidden
+          title="ปลดล็อกเพื่อเปิดไพ่ประจำวันใบใหม่"
+          aria-label="ปลดล็อกไพ่ประจำวันของวันนี้ เพื่อเปิดใบใหม่">
+          <svg class="unlock-daily-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <rect x="4" y="10.5" width="16" height="10.5" rx="2.6"></rect>
+            <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path>
+          </svg>
+          <span class="unlock-daily-label">ปลดล็อกไพ่ประจำวัน</span>
+          <span class="unlock-daily-hint">แตะเพื่อเปิดใบใหม่</span>
+        </button>
       </div>
 
       <!-- Reading Details -->
@@ -103,32 +185,25 @@
       </div>
 
       <!-- ============================================= -->
-      <!-- DONATION CARD (ระบบค่าครูตามศรัทธา)           -->
+      <!-- DONATION CARD (ระบบโดเนทตามศรัทธา)           -->
       <!-- ============================================= -->
       <div class="donation-card" id="donation-card">
-        <div class="donation-badge">🔮 ค่าครูตามศรัทธา</div>
-        <h3 class="donation-title">ร่วมใส่ซองค่าครูตามจิตศรัทธา</h3>
+        <div class="donation-badge">🔮 โดเนทตามศรัทธา</div>
+        <h3 class="donation-title">ร่วมสนับสนุนตามจิตศรัทธา</h3>
         <p class="donation-desc">
           ไม่มีการกำหนดขั้นต่ำ เปิดรับตามกำลังศรัทธาและความสบายใจ
           เพื่อเปิดทางพลังงานบวกและเป็นกำลังใจให้แม่หมอครับ
         </p>
 
-        <!-- PromptPay QR Code Canvas -->
-        <div class="qr-container">
-          <div class="promptpay-logo-badge">
-            <span style="font-weight:800;font-size:1.1rem;color:#003764;">Prompt</span><span style="font-weight:800;font-size:1.1rem;color:#0093d5;">Pay</span>
-          </div>
-          <canvas id="qrcode-canvas"></canvas>
-          <div class="qr-amount-display" id="qr-amount-display">✨ สแกนแล้วระบุยอดตามศรัทธาในแอปธนาคาร ✨</div>
+        <!-- TrueMoney Wallet QR Code Container -->
+        <div class="qr-container truemoney-container">
+          <img src="truemoney-qr.png" alt="TrueMoney Wallet QR Code" class="truemoney-qr-img" id="truemoney-qr-img">
+          <div class="qr-amount-display" id="qr-amount-display">✨ สแกนผ่านแอป TrueMoney หรือแอปธนาคาร ✨</div>
         </div>
 
-        <!-- Account / PromptPay details & Copy -->
-        <div style="margin:0.5rem 0;">
-          <div class="account-info">
-            <span style="color:var(--text-muted);font-size:0.85rem;">พร้อมเพย์:</span>
-            <span class="account-number" id="display-promptpay-number">081-234-5678</span>
-            <button class="btn-copy" id="btn-copy-account">คัดลอก</button>
-          </div>
+        <!-- Save QR for mobile users -->
+        <div class="qr-actions">
+          <button id="btn-save-qr" class="btn-download-qr">📥 บันทึกรูป QR ลงเครื่อง</button>
         </div>
 
         <p class="blessing-msg">
@@ -145,38 +220,36 @@
 
     </section>
 
+    <!-- Legal & Belief Disclaimer -->
+    <footer class="app-footer">
+      <p class="footer-disclaimer">
+        🔮 <strong>ข้อควรทราบ:</strong> การดูดวงนี้จัดทำขึ้นเพื่อความบันเทิงและเป็นข้อคิดเตือนใจเท่านั้น เป็นความเชื่อส่วนบุคคล โปรดใช้วิจารณญาณในการรับสาร | การร่วมสนับสนุนเป็นไปตามจิตศรัทธาและความสบายใจโดยสมัครใจ
+      </p>
+      <p class="footer-copyright">
+        Tarot Sanctuary &copy; 2026 — All Rights Reserved.
+      </p>
+    </footer>
+
   </main>
 
-  <!-- PromptPay Settings Modal -->
-  <div class="modal-overlay" id="settings-modal">
-    <div class="modal-content">
-      <button class="modal-close" id="btn-modal-close">&times;</button>
-      <h3 class="modal-title">⚙️ ตั้งค่าบัญชีรับเงินโดเนท</h3>
-      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.2rem;">
-        ระบุเบอร์พร้อมเพย์ หรือเลขบัตรประชาชนของคุณ เพื่อให้ QR Code รับเงินเข้าบัญชีของคุณโดยตรง
+  <!-- Confirm Dialog: ปลดล็อกไพ่ประจำวัน -->
+  <div class="confirm-overlay" id="daily-unlock-confirm" hidden>
+    <div class="confirm-box" role="dialog" aria-modal="true"
+      aria-labelledby="daily-unlock-confirm-title" aria-describedby="daily-unlock-confirm-text">
+      <h3 class="confirm-title" id="daily-unlock-confirm-title">ปลดล็อกไพ่ประจำวัน?</h3>
+      <p class="confirm-text" id="daily-unlock-confirm-text">
+        ไพ่ประจำวันของวันนี้จะถูกปลดล็อก เพื่อให้คุณเปิดใบใหม่ได้อีกครั้ง
       </p>
-
-      <div class="form-group">
-        <label class="form-label">เบอร์พร้อมเพย์ หรือ เลขบัตร ปชช. (10 หรือ 13 หลัก)</label>
-        <input type="text" id="input-promptpay-target" class="form-input" placeholder="เช่น 0812345678" maxlength="13">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">ชื่อผู้รับ / แม่หมอ (สำหรับแสดงผล)</label>
-        <input type="text" id="input-merchant-name" class="form-input" placeholder="เช่น แม่หมอทาโรต์">
-      </div>
-
-      <div style="text-align:right;margin-top:1.5rem;">
-        <button id="btn-save-settings" class="btn-primary" style="padding:0.6rem 1.5rem;font-size:0.9rem;">
-          บันทึกการตั้งค่า
-        </button>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-btn confirm-btn-cancel" id="btn-daily-unlock-cancel">ยกเลิก</button>
+        <button type="button" class="confirm-btn confirm-btn-ok" id="btn-daily-unlock-ok">ตกลง</button>
       </div>
     </div>
   </div>
 
   <!-- Scripts -->
-  <script src="cards-data.js?v=1.3"></script>
-  <script src="promptpay.js?v=1.3"></script>
-  <script src="app.js?v=1.3"></script>
+  <script src="cards-data.js?v=1.4"></script>
+  <script src="promptpay.js?v=1.4"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>

@@ -1,5 +1,4 @@
-/* Google Fonts: Prompt & Cinzel */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Prompt:wght@300;400;500;600;700&display=swap');
+/* Google Fonts (Prompt & Cinzel) โหลดผ่าน <link> ใน index.html */
 
 :root {
   --bg-deep: #080914;
@@ -58,8 +57,7 @@ body {
   pointer-events: none;
 }
 
-.stars-bg::before,
-.stars-bg::after {
+.stars-bg::before {
   content: "";
   position: absolute;
   top: 0;
@@ -96,6 +94,7 @@ body {
   letter-spacing: 2px;
   background: var(--gold-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
   margin-bottom: 0.3rem;
@@ -115,8 +114,9 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-gold);
   color: var(--gold-primary);
-  width: 42px;
-  height: 42px;
+  /* 44px = ขนาดขั้นต่ำที่กดด้วยนิ้วได้สบาย (ทั้ง sound + settings ใช้ร่วม) */
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -258,7 +258,7 @@ body {
 }
 
 .question-input::placeholder {
-  color: #6c7293;
+  color: #828bac; /* 5.4:1 บนพื้นการ์ด — ผ่าน AA และยังดูเป็น placeholder */
 }
 
 /* Card Selection Area */
@@ -284,6 +284,16 @@ body {
   perspective: 1200px;
 }
 
+.fanned-deck-track {
+  position: relative;
+  width: 100%;
+  min-height: 210px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: none;
+}
+
 .deck-card {
   width: 100px;
   height: 160px;
@@ -304,12 +314,17 @@ body {
   --tx: 0px;
   --ty: 0px;
   --rot: 0deg;
+  /* Scroll-linked depth: อัปเดตทุกเฟรมตอนปัดไพ่ (ไม่ผ่าน transition) */
+  --depth-scale: 1;
+  --depth-lift: 0px;
+  translate: 0 var(--depth-lift, 0px);
+  scale: var(--depth-scale, 1);
   transform: translate(var(--tx, 0px), var(--ty, 0px)) rotate(var(--rot, 0deg));
   transition: transform 0.4s var(--ease-smooth),
               box-shadow 0.35s ease,
               border-color 0.3s ease,
               opacity 0.35s ease;
-  will-change: transform;
+  will-change: transform, scale, translate;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -351,8 +366,18 @@ body {
 .deck-card.selected {
   transform: translate(var(--tx, 0px), calc(var(--ty, 0px) - 34px)) rotate(var(--rot, 0deg)) scale(1.08);
   border-color: #2ecc71;
-  box-shadow: 0 0 25px rgba(46, 204, 113, 0.7), 0 12px 25px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 14px rgba(46, 204, 113, 0.38), 0 12px 24px rgba(0, 0, 0, 0.55);
   z-index: 90 !important;
+  animation: selectedAura 2.6s ease-in-out infinite;
+}
+
+@keyframes selectedAura {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(46, 204, 113, 0.32), 0 12px 24px rgba(0, 0, 0, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5), 0 14px 26px rgba(0, 0, 0, 0.6);
+  }
 }
 
 .deck-card.selected::after {
@@ -361,21 +386,62 @@ body {
   opacity: 1;
 }
 
-/* Shuffle Animations */
+/* คีย์บอร์ด: วงแหวนโฟกัสต้องอ่านออก แม้การ์ดจะหมุนและซ้อนกัน */
+.deck-card:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+  z-index: 130 !important;
+}
+
+.deck-card:focus-visible::after {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.deck-card.selected[data-order]::before {
+  content: attr(data-order);
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #2ecc71;
+  color: #0c0e1a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.55);
+  border: 2px solid #121429;
+}
+
+/* Shuffle Animations (Natural Overhand Cut + Riffle Physics) */
 .deck-card.gathering {
-  transform: translate(0px, 0px) rotate(0deg) scale(0.96) !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6) !important;
-  transition: transform 0.35s var(--ease-smooth), box-shadow 0.35s ease !important;
+  transform: translate3d(var(--gx, 0px), var(--gy, 0px), 0px) rotate(var(--gr, 0deg)) scale(0.96) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6) !important;
+  transition: transform 0.28s cubic-bezier(0.22, 1.12, 0.36, 1), box-shadow 0.28s ease !important;
 }
 
-.deck-card.riffle-left {
-  transform: translate(-30px, -4px) rotate(-6deg) scale(0.96) !important;
-  transition: transform 0.22s var(--ease-smooth) !important;
+.deck-card.overhand-cut {
+  transform: translate3d(var(--cx, 28px), var(--cy, -22px), 0px) rotate(var(--cr, 6deg)) scale(0.98) !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.68) !important;
+  transition: transform 0.2s cubic-bezier(0.2, 0.85, 0.3, 1), box-shadow 0.2s ease !important;
 }
 
-.deck-card.riffle-right {
-  transform: translate(30px, 4px) rotate(6deg) scale(0.96) !important;
-  transition: transform 0.22s var(--ease-smooth) !important;
+.deck-card.riffle-split {
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0px) rotate(var(--rr, 0deg)) scale(0.95) !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.62) !important;
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.22s ease !important;
+}
+
+.deck-card.riffle-interleave {
+  transform: translate3d(var(--gx, 0px), var(--gy, 0px), 0px) rotate(var(--gr, 0deg)) scale(0.97) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6) !important;
+  transition: transform 0.28s cubic-bezier(0.22, 1.24, 0.36, 1), box-shadow 0.28s ease !important;
 }
 
 .action-bar {
@@ -491,6 +557,7 @@ body {
 .result-badge-group {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -603,8 +670,62 @@ body {
 }
 
 .tarot-card-inner.flipped {
-  transform: rotateY(180deg);
+  transform: rotateY(180deg) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   box-shadow: 0 15px 40px rgba(243, 156, 18, 0.25);
+}
+
+.tarot-card-inner.tilting {
+  transition: box-shadow 0.25s ease;
+}
+
+.tarot-foil-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 248, 225, 0.16) 0%,
+    rgba(245, 176, 65, 0.06) 38%,
+    transparent 68%
+  );
+  opacity: var(--glare-opacity, 0);
+  transition: opacity 0.25s ease;
+  mix-blend-mode: screen;
+}
+
+/* Mystical Particle Burst */
+.magic-particle {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1500;
+  will-change: transform, opacity;
+  animation: particleBurst 650ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes particleBurst {
+  0% {
+    opacity: 0.72;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--px, 0px), var(--py, -36px), 0) scale(0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magic-particle,
+  .tarot-foil-glare {
+    display: none !important;
+  }
+  .tarot-card-container.floating,
+  .deck-card.selected {
+    animation: none !important;
+  }
 }
 
 .tarot-card-face {
@@ -697,7 +818,7 @@ body {
 .tarot-card-label {
   padding: 0.6rem 0.4rem;
   background: rgba(18, 20, 41, 0.95);
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Prompt', serif;
   font-size: 0.95rem;
   color: var(--gold-primary);
   font-weight: 700;
@@ -783,6 +904,8 @@ body {
   line-height: 1.7;
   color: #e4e7eb;
   margin-bottom: 1rem;
+  /* จำกัดความยาวบรรทัดให้อ่านสบาย (~60-66 ตัวอักษรไทย) ไม่ยืดเต็มจอกว้าง */
+  max-width: 30em;
 }
 
 .reading-highlights {
@@ -806,7 +929,7 @@ body {
 }
 
 /* ========================================= */
-/* DONATION BOX (ระบบค่าครู / โดเนท)        */
+/* DONATION BOX (ระบบโดเนท)                 */
 /* ========================================= */
 .donation-card {
   background: linear-gradient(145deg, #181938 0%, #101227 100%);
@@ -887,12 +1010,13 @@ body {
 
 /* QR Code Display Area */
 .qr-container {
-  background: #ffffff;
+  background: #fdfaf3;
+  border: 2px solid rgba(245, 176, 65, 0.65);
   padding: 1.2rem;
-  border-radius: 16px;
+  border-radius: 18px;
   display: inline-block;
   margin: 0 auto 1.2rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(243, 156, 18, 0.16);
   position: relative;
 }
 
@@ -908,16 +1032,41 @@ body {
   height: 24px;
 }
 
+.truemoney-container {
+  max-width: 320px;
+  width: 100%;
+  padding: 0.9rem;
+  background: #ffffff;
+  border: 2px solid rgba(245, 176, 65, 0.7);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45), 0 0 25px rgba(243, 156, 18, 0.2);
+}
+
+.truemoney-qr-img {
+  display: block;
+  width: 100%;
+  max-width: 290px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
 #qrcode-canvas {
   display: block;
   margin: 0 auto;
+  border-radius: 10px;
 }
 
 .qr-amount-display {
-  color: #000;
-  font-weight: 700;
-  font-size: 1.1rem;
-  margin-top: 0.5rem;
+  color: #191b35;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-top: 0.6rem;
+}
+
+.merchant-display {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
 }
 
 .account-info {
@@ -926,6 +1075,8 @@ body {
   padding: 0.8rem 1.2rem;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.8rem;
   margin-bottom: 1.2rem;
   max-width: 100%;
@@ -943,10 +1094,16 @@ body {
   border: 1px solid var(--border-gold);
   color: var(--gold-primary);
   border-radius: 6px;
-  padding: 0.3rem 0.7rem;
+  padding: 0.3rem 0.9rem;
   font-size: 0.8rem;
   cursor: pointer;
   font-family: inherit;
+  /* เป้าหมายแตะขั้นต่ำ 44px (WCAG 2.5.5) */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s var(--ease-spring), background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1072,9 +1229,29 @@ body {
   .fanned-deck {
     min-height: 200px;
   }
+  .fanned-deck.scrollable {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* กันหน้าเว็บ/ท่าปัดย้อนกลับติดไปด้วยเวลาปัดสุดขอบ */
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    padding-top: 3.4rem;
+    padding-bottom: 1.5rem;
+    mask-image: linear-gradient(to right, transparent 0%, #000 11%, #000 89%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 11%, #000 89%, transparent 100%);
+  }
+  .fanned-deck.scrollable::-webkit-scrollbar {
+    display: none;
+  }
+  .fanned-deck.scrollable .fanned-deck-track {
+    min-height: 160px;
+  }
   .deck-card {
-    width: 80px;
-    height: 130px;
+    width: 76px;
+    height: 124px;
   }
   .tarot-card-container {
     width: 180px;
@@ -1083,8 +1260,25 @@ body {
   .tarot-card-img {
     height: 240px;
   }
+  .reading-details {
+    padding: 1.35rem 1.1rem;
+  }
   .donation-card {
     padding: 1.8rem 1rem;
+  }
+  .qr-container {
+    padding: 1rem;
+  }
+  .qr-amount-display {
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .account-info {
+    padding: 0.65rem 0.9rem;
+    gap: 0.55rem;
+  }
+  .account-number {
+    font-size: 0.95rem;
   }
   .result-header {
     margin-bottom: 1.2rem;
@@ -1096,4 +1290,607 @@ body {
     font-size: 0.8rem;
     padding: 0.35rem 0.85rem;
   }
+}
+
+/* ========================================= */
+/* SOUND TOGGLE                              */
+/* ========================================= */
+.sound-trigger {
+  left: 1.5rem;
+  right: auto;
+  font-size: 1.1rem;
+}
+
+.sound-trigger:hover {
+  transform: scale(1.08);
+}
+
+/* ========================================= */
+/* REVERSED MODE TOGGLE                      */
+/* ========================================= */
+.reversed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed var(--border-gold);
+  border-radius: 12px;
+}
+
+.reversed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  user-select: none;
+}
+
+.reversed-toggle input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 46px;
+  height: 26px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--border-gold);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.reversed-toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.3s var(--ease-spring), background 0.3s ease;
+}
+
+.reversed-toggle input:checked {
+  background: var(--gold-primary);
+  border-color: var(--gold-primary);
+}
+
+.reversed-toggle input:checked::after {
+  transform: translateX(20px);
+  background: #121429;
+}
+
+.reversed-toggle input:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 3px;
+}
+
+.reversed-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.reversed-info-btn {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border-gold);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gold-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: transform 0.2s var(--ease-spring), background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* สถานะ "เปิดอยู่" ใช้ aria-expanded เท่านั้น
+   (ไม่ใช้ :hover ร่วม เพราะบนมือถือ :hover ค้างหลังแตะ ทำให้กดปิดแล้วยังสว่างค้าง) */
+.reversed-info-btn[aria-expanded="true"] {
+  background: var(--gold-primary);
+  color: #121429;
+  border-color: var(--gold-primary);
+  transform: scale(1.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reversed-info-btn:hover {
+    background: var(--gold-primary);
+    color: #121429;
+    border-color: var(--gold-primary);
+    transform: scale(1.08);
+  }
+}
+
+.reversed-info-btn:active {
+  transform: scale(0.95);
+}
+
+/* ขยายพื้นที่แตะให้ใกล้ 44px โดยไม่เปลี่ยนขนาดวงกลมที่มองเห็น */
+.reversed-info-btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+.reversed-info-box {
+  display: none;
+  flex-basis: 100%;
+  width: 100%;
+  /* จำกัดความยาวบรรทัดที่ตัวกล่อง (ไม่ใช่แค่ตัวอักษร) เพื่อไม่ให้มีพื้นที่ว่างด้านขวา */
+  max-width: 30em;
+  margin-top: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  background: rgba(18, 20, 41, 0.75);
+  border: 1px solid rgba(243, 156, 18, 0.25);
+  border-left: 3px solid var(--gold-primary);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: #e4e7eb;
+  text-align: left;
+}
+
+.reversed-info-box.show {
+  display: block;
+  animation: fadeIn 0.25s var(--ease-smooth);
+}
+
+.reversed-info-box strong {
+  color: var(--gold-primary);
+}
+
+.reversed-info-lead {
+  margin-bottom: 0.45rem;
+}
+
+.reversed-info-list {
+  margin: 0 0 0.55rem 1.25rem;
+  padding: 0;
+}
+
+.reversed-info-list li {
+  margin-bottom: 0.25rem;
+}
+
+.reversed-info-foot {
+  margin-bottom: 0.55rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid rgba(243, 156, 18, 0.45);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.reversed-info-example {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.reversed-info-example ul {
+  margin: 0.25rem 0 0 1.2rem;
+  padding: 0;
+}
+
+.reversed-info-example li {
+  margin-bottom: 0.15rem;
+}
+
+/* Reversed card look */
+.tarot-card-img.reversed-img {
+  transform: rotate(180deg);
+}
+
+.reversed-flag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  background: rgba(142, 68, 173, 0.92);
+  color: #fff;
+  font-family: 'Prompt', sans-serif;
+  /* 11.2px เล็กเกินไปสำหรับอักษรไทย — ขยับขึ้นเป็น 12px */
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.reversed-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  background: rgba(142, 68, 173, 0.35);
+  border: 1px solid rgba(215, 189, 226, 0.5);
+  color: #e8d5f2;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-pill);
+}
+
+.reversed-note {
+  font-size: 0.8rem;
+  color: #e2c9ef;
+  background: rgba(142, 68, 173, 0.18);
+  border-left: 3px solid var(--purple-accent);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+}
+
+/* ========================================= */
+/* SHARE / SAVE QR BUTTONS                   */
+/* ========================================= */
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-share-reading:hover {
+  background: rgba(142, 68, 173, 0.25);
+  border-color: #d7bde2;
+}
+
+.btn-share-reading:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.qr-actions {
+  text-align: center;
+  margin: -0.3rem 0 1.2rem;
+}
+
+.btn-download-qr {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-gold);
+  color: var(--gold-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.55rem 1.3rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-spring), background 0.25s ease,
+              color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.btn-download-qr:hover {
+  background: var(--gold-primary);
+  color: #0c0e1a;
+  border-color: var(--gold-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+}
+
+.btn-download-qr:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ========================================= */
+/* TOAST NOTIFICATION                        */
+/* ========================================= */
+.toast-notification {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  transform: translate(-50%, 20px);
+  max-width: min(90vw, 460px);
+  background: rgba(20, 23, 51, 0.97);
+  border: 1px solid var(--gold-primary);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: center;
+  padding: 0.8rem 1.4rem;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 20px rgba(243, 156, 18, 0.18);
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s var(--ease-out-expo);
+  pointer-events: none;
+}
+
+.toast-notification.toast-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast-notification.toast-error {
+  border-color: #e74c3c;
+  color: #ffb9b0;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 20px rgba(231, 76, 60, 0.25);
+}
+
+@media (max-width: 600px) {
+  /* ปุ่มสองมุมหัวเว็บมีพื้นที่ของตัวเอง ไม่ทับชื่อเรื่อง */
+  .app-header {
+    padding-top: 4.5rem;
+  }
+  .sound-trigger {
+    left: 1rem;
+  }
+  .settings-trigger {
+    right: 1rem;
+  }
+  .reversed-row {
+    padding: 0.6rem 0.8rem;
+  }
+  .reversed-info-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+  .result-header {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .result-actions {
+    gap: 0.4rem;
+  }
+  .btn-share-reading {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.85rem;
+  }
+}
+
+/* ========================================= */
+/* DAILY LOCK BADGE                          */
+/* ========================================= */
+.daily-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e8d5f5;
+  background: rgba(142, 68, 173, 0.3);
+  border: 1px solid rgba(215, 189, 226, 0.4);
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.65rem;
+  white-space: nowrap;
+}
+
+.daily-lock-badge[hidden] {
+  display: none;
+}
+
+/* ปุ่มปลดล็อกไพ่ประจำวัน — ม่านดำโปร่งแสงคลุมตัวไพ่
+   โผล่เฉพาะตอนกด "ดูรอบใหม่" ขณะไพ่ประจำวันยังล็อกอยู่
+   slot มีความสูง 0 จึงไม่ดัน layout และไม่ทิ้งช่องว่างไว้ */
+.daily-unlock-slot {
+  position: relative;
+  height: 0;
+  z-index: 6;
+}
+
+.btn-unlock-daily {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 32px); /* 2.5rem margin ของ showcase ลบ 8px ที่คลุมเลยขอบไพ่ */
+  margin-inline: auto;
+  width: 240px;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #c3cadb;
+  text-align: center;
+  background: rgba(8, 9, 20, 0.7);
+  border: 1px solid rgba(214, 220, 235, 0.18);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.btn-unlock-daily:hover {
+  background: rgba(8, 9, 20, 0.82);
+  color: #dde2ee;
+  border-color: rgba(214, 220, 235, 0.3);
+}
+
+.btn-unlock-daily:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.btn-unlock-daily[hidden] {
+  display: none;
+}
+
+.unlock-daily-icon {
+  width: 34px;
+  height: 34px;
+  opacity: 0.85;
+}
+
+.unlock-daily-hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #b0b8c9;
+}
+
+.btn-unlock-daily:hover .unlock-daily-hint {
+  color: #c2c9d8;
+}
+
+.btn-unlock-daily.is-revealed {
+  animation: unlock-pop 0.4s var(--ease-smooth);
+}
+
+@keyframes unlock-pop {
+  0% { opacity: 0; transform: scale(0.92); }
+  60% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-unlock-daily.is-revealed {
+    animation: none;
+  }
+}
+
+@media (max-width: 600px) {
+  /* ตามขนาดการ์ดบนมือถือ 180×300 (+ ขอบคลุม 10px รอบด้าน) */
+  .btn-unlock-daily {
+    width: 200px;
+    height: 320px;
+    font-size: 0.9rem;
+  }
+  .unlock-daily-icon {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* ========================================= */
+/* CONFIRM DIALOG (ปลดล็อกไพ่ประจำวัน)        */
+/* ========================================= */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(4, 5, 12, 0.72);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.confirm-overlay[hidden] {
+  display: none;
+}
+
+.confirm-overlay.show {
+  opacity: 1;
+}
+
+.confirm-box {
+  width: 100%;
+  max-width: 340px;
+  background: #141733;
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-card);
+  padding: 1.5rem 1.35rem 1.25rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(243, 156, 18, 0.15);
+  transform: scale(0.96);
+  transition: transform 0.2s var(--ease-smooth);
+}
+
+.confirm-overlay.show .confirm-box {
+  transform: scale(1);
+}
+
+.confirm-title {
+  font-size: 1.05rem;
+  color: var(--gold-primary);
+  margin-bottom: 0.6rem;
+}
+
+.confirm-text {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #cfd5e5;
+  margin-bottom: 1.25rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.confirm-btn {
+  flex: 1;
+  min-height: 44px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.confirm-btn-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #cfd5e5;
+}
+
+.confirm-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.confirm-btn-ok {
+  background: rgba(212, 175, 55, 0.2);
+  border: 1px solid var(--gold-primary);
+  color: var(--gold-primary);
+}
+
+.confirm-btn-ok:hover {
+  background: rgba(212, 175, 55, 0.34);
+  color: #ffe2a8;
+}
+
+.confirm-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* ========================================= */
+/* FOOTER & DISCLAIMER                      */
+/* ========================================= */
+.app-footer {
+  margin-top: 3.5rem;
+  padding: 2rem 1rem 3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.footer-disclaimer {
+  max-width: 680px;
+  margin: 0 auto 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.footer-copyright {
+  font-size: 0.75rem;
+  color: rgba(166, 176, 207, 0.6);
 }
