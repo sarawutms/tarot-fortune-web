@@ -14,11 +14,12 @@ const AudioFX = (function () {
   function getMaster(ac) {
     if (master && master.context === ac) return master;
     const gain = ac.createGain();
-    gain.gain.value = 2.4;
+    // 6 ทำให้ peak ของเสียงดังสุด ~ -6 dBFS: ชัดบนลำโพงมือถือโดยไม่แตก
+    gain.gain.value = 6;
     const comp = ac.createDynamicsCompressor();
-    comp.threshold.value = -10;
-    comp.knee.value = 6;
-    comp.ratio.value = 4;
+    comp.threshold.value = -4;
+    comp.knee.value = 4;
+    comp.ratio.value = 2.5;
     comp.attack.value = 0.003;
     comp.release.value = 0.25;
     gain.connect(comp);
@@ -103,7 +104,8 @@ const AudioFX = (function () {
     tap() { tone(880, 0.06, { type: "triangle", gain: 0.03 }); },
     shuffle() {
       for (let i = 0; i < 7; i++) {
-        noiseBurst(0.05, { freq: 900 + Math.random() * 1800, gain: 0.04, when: i * 0.055 });
+        // เสียงสับไพ่เป็นย่านสูง ซึ่งลำโพงมือถือ reproduce ได้ดี แต่เดิมเบาเกินไปจนแทบไม่ได้ยิน
+        noiseBurst(0.05, { freq: 900 + Math.random() * 1800, gain: 0.06, when: i * 0.055 });
       }
     },
     flip() {
@@ -219,6 +221,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let isRevealing = false;
   let reversedMode = false;
   let lastReading = null;
+  // cache รูปผลทำนาย — เตรียมไว้ล่วงหน้าเพื่อให้กดแชร์แล้วชีตแชร์เปิดทันที (iOS ต้องการจังหวะกดจริง)
+  let shareImageCache = { key: "", result: null, promise: null };
+  let warmShareTimer = 0;
 
   try {
     reversedMode = localStorage.getItem("tarot_reversed_mode") === "1";
@@ -1165,6 +1170,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }, flipTime);
       });
     }
+
+    // เตรียมรูปไว้ล่วงหน้า เพื่อให้กดแชร์แล้วเปิดชีตแชร์ได้ทันที (iOS บังคับให้อยู่ในจังหวะที่ผู้ใช้กด)
+    scheduleWarmShareImage();
   }
 
   // ==========================================
@@ -2014,7 +2022,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    // ให้เวลามากพอบนมือถือที่ต้องเปิด/บันทึกไฟล์ก่อน แล้วค่อยคืนหน่วยความจำ
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  // iPadOS 13+ รายงาน user agent เป็น Macintosh แต่ยังเป็นจอสัมผัส
+  function isIosLike() {
+    const ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
   }
 
   // รูปผลทำนายมี 2 ขนาด: สตอรี่ = แนวตั้ง 1080x1920, ฟีด = จัตุรัส 1080x1080
@@ -2052,53 +2068,124 @@ document.addEventListener("DOMContentLoaded", () => {
     return { blob, preset, filename: `tarot-${lastReading.mode}${preset.suffix}-${Date.now()}.png` };
   }
 
+  // คืนค่า "shared" | "canceled" | "unsupported"
   async function tryShareFile(blob, filename) {
-    if (typeof File === "undefined" || !navigator.canShare || !navigator.share) return false;
+    if (typeof File === "undefined" || !navigator.canShare || !navigator.share) return "unsupported";
     try {
       const file = new File([blob], filename, { type: "image/png" });
-      if (!navigator.canShare({ files: [file] })) return false;
+      if (!navigator.canShare({ files: [file] })) return "unsupported";
       await navigator.share({ files: [file], title: SHARE_TITLE, text: SHARE_TEXT });
-      return true;
+      return "shared";
     } catch (shareErr) {
-      // ผู้ใช้กดยกเลิกในชีตแชร์ = ถือว่าจบแล้ว ไม่ต้องดาวน์โหลดซ้ำ
-      return !!(shareErr && shareErr.name === "AbortError");
+      // ผู้ใช้กดยกเลิกในชีตแชร์ = ถือว่าจบแล้ว ไม่ต้องบันทึกไฟล์ซ้ำ
+      if (shareErr && shareErr.name === "AbortError") return "canceled";
+      console.warn("Share sheet unavailable:", shareErr);
+      return "unsupported";
     }
+  }
+
+  // iOS ไม่รองรับ <a download> กับ blob (กดแล้วไม่มีอะไรเกิดขึ้น / เปิดรูปค้างในแท็บ)
+  // จึงใช้ชีตแชร์แทน แล้วให้ผู้ใช้เลือก "บันทึกรูปภาพ" ลงอัลบั้ม
+  async function saveImageFile(blob, filename) {
+    if (isIosLike()) {
+      const status = await tryShareFile(blob, filename);
+      if (status !== "unsupported") return status;
+    }
+    downloadBlob(blob, filename);
+    return "downloaded";
+  }
+
+  // สร้างรูปเก็บไว้ล่วงหน้า: บน iOS navigator.share ต้องถูกเรียกในจังหวะที่ผู้ใช้กด
+  // ถ้ารอสร้าง canvas/blob ก่อน สิทธิ์การกดจะหมดอายุและชีตแชร์ไม่ขึ้น
+  function readingImageKey() {
+    if (!lastReading) return "";
+    const cards = lastReading.cards.map(c => `${c.name}:${c.isReversed ? 1 : 0}`).join(",");
+    return `${lastReading.mode}|${shareImageSize}|${cards}|${lastReading.question || ""}`;
+  }
+
+  function prepareReadingImage() {
+    const key = readingImageKey();
+    if (!key) return Promise.reject(new Error("no reading"));
+    if (shareImageCache.key === key && shareImageCache.promise) return shareImageCache.promise;
+    const promise = renderReadingImage().then(result => {
+      if (shareImageCache.key === key) shareImageCache.result = result;
+      return result;
+    }, err => {
+      if (shareImageCache.key === key) shareImageCache.promise = null;
+      throw err;
+    });
+    shareImageCache = { key, result: null, promise };
+    return promise;
+  }
+
+  function scheduleWarmShareImage() {
+    clearTimeout(warmShareTimer);
+    warmShareTimer = setTimeout(() => {
+      if (!lastReading) return;
+      const warm = () => { prepareReadingImage().catch(() => { /* สร้างไม่ได้ก็ปล่อยให้กดแล้วสร้างใหม่ */ }); };
+      if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 2500 });
+      else warm();
+    }, 500);
   }
 
   function wireImageAction(btn, action) {
     if (!btn) return;
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       if (!lastReading) return;
       const originalLabel = btn.innerHTML;
+      const key = readingImageKey();
+      // ถ้ารูปถูกเตรียมไว้แล้ว (key ตรงกัน) จะไม่ await ก่อนเรียกชีตแชร์ → ยังอยู่ในจังหวะที่ผู้ใช้กด
+      const cached = shareImageCache.key === key ? shareImageCache.result : null;
+
       btn.disabled = true;
       btn.textContent = action === "share" ? "⏳ กำลังแชร์..." : "⏳ กำลังบันทึก...";
-      try {
-        const { blob, preset, filename } = await renderReadingImage();
-        if (action === "share") {
-          if (await tryShareFile(blob, filename)) {
-            showToast("✨ เปิดหน้าต่างแชร์แล้ว — เลือกแอปที่ต้องการได้เลย");
+
+      (async () => {
+        try {
+          const { blob, preset, filename } = cached || await prepareReadingImage();
+          if (action === "share") {
+            const status = await tryShareFile(blob, filename);
+            if (status === "shared") {
+              showToast("✨ เปิดหน้าต่างแชร์แล้ว — เลือกแอปที่ต้องการได้เลย");
+            } else if (status === "canceled") {
+              showToast("ยกเลิกการแชร์แล้ว");
+            } else {
+              downloadBlob(blob, filename);
+              showToast(`📥 เบราว์เซอร์นี้แชร์ไฟล์ไม่ได้ — บันทึก${preset.label}ให้แล้ว`);
+            }
           } else {
-            downloadBlob(blob, filename);
-            showToast(`📥 เบราว์เซอร์นี้แชร์ไฟล์ไม่ได้ — บันทึก${preset.label}ให้แล้ว`);
+            const status = await saveImageFile(blob, filename);
+            if (status === "shared") {
+              showToast(`📥 เลือก "บันทึกรูปภาพ" ในชีตแชร์เพื่อเก็บ${preset.label}ได้เลย`);
+            } else if (status === "canceled") {
+              showToast("ยกเลิกการบันทึกแล้ว");
+            } else {
+              showToast(`📥 บันทึก${preset.label}แล้ว`);
+            }
           }
-        } else {
-          downloadBlob(blob, filename);
-          showToast(`📥 บันทึก${preset.label}แล้ว`);
+          AudioFX.success();
+          haptic(12);
+        } catch (err) {
+          console.error("Image action error:", err);
+          showToast("ขออภัย สร้างรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "error");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalLabel;
         }
-        AudioFX.success();
-        haptic(12);
-      } catch (err) {
-        console.error("Image action error:", err);
-        showToast("ขออภัย สร้างรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "error");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalLabel;
-      }
+      })();
     });
   }
 
-  if (btnSizeStory) btnSizeStory.addEventListener("click", () => setShareImageSize("story"));
-  if (btnSizeFeed) btnSizeFeed.addEventListener("click", () => setShareImageSize("feed"));
+  function wireSizeButton(btn, size) {
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      setShareImageSize(size);
+      scheduleWarmShareImage();
+    });
+  }
+
+  wireSizeButton(btnSizeStory, "story");
+  wireSizeButton(btnSizeFeed, "feed");
   setShareImageSize("story");
   wireImageAction(btnSaveImage, "save");
   wireImageAction(btnShareImage, "share");
