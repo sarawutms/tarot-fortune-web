@@ -2178,24 +2178,48 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ==========================================
-  // DONATION & TRUEMONEY QR LOGIC
+  // DONATION & QR SAVE LOGIC
   // ==========================================
-  // Save TrueMoney QR as image (for mobile users who cannot scan their own screen)
+  // Save QR as image (uses Web Share API on mobile to save directly to Photos / Gallery)
   if (btnSaveQR) {
-    btnSaveQR.addEventListener("click", () => {
+    btnSaveQR.addEventListener("click", async () => {
       try {
-        const a = document.createElement("a");
-        a.href = "truemoney-qr.png";
-        a.download = "truemoney-qr.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        AudioFX.success();
-        haptic(10);
-        showToast("📥 บันทึกรูป QR Code ลงเครื่องแล้ว — เปิดแอปสแกนได้เลย");
+        const res = await fetch("truemoney-qr.png");
+        const blob = await res.blob();
+        const filename = `tarot-qr-${Date.now()}.png`;
+
+        let savedViaShare = false;
+        if (typeof File !== "undefined" && navigator.canShare && navigator.share) {
+          try {
+            const file = new File([blob], filename, { type: "image/png" });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                files: [file],
+                title: "QR Code ค่าครูตามศรัทธา",
+                text: "บันทึกภาพ QR Code เพื่อสแกนในแอปธนาคารหรือ TrueMoney"
+              });
+              savedViaShare = true;
+              AudioFX.success();
+              haptic(10);
+              showToast("✨ เลือก ‘บันทึกรูปภาพ’ (Save Image) เพื่อเก็บเข้า Photos / อัลบั้มได้เลย");
+            }
+          } catch (shareErr) {
+            if (shareErr && shareErr.name === "AbortError") {
+              savedViaShare = true; // ผู้ใช้กดยกเลิก share sheet เอง
+            }
+          }
+        }
+
+        if (!savedViaShare) {
+          // Fallback สำหรับ Desktop หรือบราวเซอร์ที่ไม่รองรับ Web Share
+          downloadBlob(blob, filename);
+          AudioFX.success();
+          haptic(10);
+          showToast("📥 บันทึกรูป QR เรียบร้อยแล้ว (หรือแตะค้างที่รูป QR เพื่อบันทึกลง Photos)");
+        }
       } catch (err) {
         console.error("Save QR error:", err);
-        showToast("บันทึกรูป QR ไม่สำเร็จ กรุณากดค้างที่รูปเพื่อบันทึก", "error");
+        showToast("แตะค้างที่รูป QR เพื่อบันทึกลงแอปรูปภาพ (Photos) ได้โดยตรงครับ", "error");
       }
     });
   }
