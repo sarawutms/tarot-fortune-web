@@ -2032,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", () => {
     syncDailyLockUI();
     AudioFX.success();
     haptic(8);
-    showToast("🔓 ปลดล็อกแล้ว — เริ่มสับไพ่ชุดใหม่ให้เลย");
+    showToast("🔓 ปลดล็อกไพ่ประจำวันแล้ว — ตั้งจิตแล้วกดสับไพ่เพื่อเริ่มทำนายใหม่ได้เลย");
   }
 
   function handleUnlockDaily() {
@@ -2049,8 +2049,8 @@ document.addEventListener("DOMContentLoaded", () => {
     btnDailyUnlockOk.addEventListener("click", () => {
       closeDailyUnlockConfirm(false);
       performDailyUnlock();
-      // ตกลง = ปลดล็อกแล้วกลับไปกองไพ่และสับชุดใหม่ทันที
-      handleResetReading();
+      // ตกลง = ปลดล็อกแล้วกลับไปกองไพ่ที่ยังไม่ได้สับแบบตอนแรก
+      handleResetReading(null, false);
     });
   }
   if (btnDailyUnlockCancel) {
@@ -2083,7 +2083,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function handleResetReading(event) {
+  function handleResetReading(event, withShuffle = false) {
     // ไพ่ประจำวันเปิดได้วันละครั้ง — กดครั้งแรกจะพาม่านปลดล็อกขึ้นมาคลุมไพ่แทนการสุ่มทับ
     if (currentMode === "daily" && getDailyLock()) {
       dailyUnlockPrompted = true;
@@ -2124,7 +2124,7 @@ document.addEventListener("DOMContentLoaded", () => {
       cardsShowcase.innerHTML = "";
       readingDetails.innerHTML = "";
       isRevealing = false;
-      showDeckArea(true); // Return to deck with fresh shuffle!
+      showDeckArea(withShuffle); // กลับมาเป็นกองไพ่ที่ยังไม่สับแบบตอนแรก
     }, 350);
   }
 
