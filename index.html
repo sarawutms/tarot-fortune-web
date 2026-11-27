@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarot Sanctuary - ไพ่ทาโรต์นำทางชีวิต &amp; ค่าครูตามศรัทธา</title>
+  <link rel="stylesheet" href="style.css?v=1.3">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+  <!-- Background Stars Animation -->
+  <div class="stars-bg"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <button id="btn-settings-trigger" class="settings-trigger" title="ตั้งค่าบัญชีพร้อมเพย์">
+      ⚙️
+    </button>
+    <h1 class="app-title">TAROT SANCTUARY</h1>
+    <p class="app-subtitle">✦ ไพ่ทาโรต์นำทางชีวิต เปิดใจรับสารจากจักรวาล ✦</p>
+  </header>
+
+  <main class="container">
+
+    <!-- Mode Selection -->
+    <section class="mode-section" id="mode-section">
+      <div class="section-label">
+        <span>✨</span> เลือกรูปแบบการเปิดไพ่
+      </div>
+      <div class="mode-grid">
+        <div class="mode-card active" data-mode="daily" data-count="1">
+          <span class="mode-icon">🌟</span>
+          <div class="mode-title">ไพ่ประจำวัน</div>
+          <div class="mode-desc">เปิด 1 ใบ รับข้อคิดและแนวทางวันนี้</div>
+        </div>
+        <div class="mode-card" data-mode="love" data-count="3">
+          <span class="mode-icon">❤️</span>
+          <div class="mode-title">ความรัก &amp; ความสัมพันธ์</div>
+          <div class="mode-desc">เปิด 3 ใบ (อดีต - ปัจจุบัน - อนาคต)</div>
+        </div>
+        <div class="mode-card" data-mode="career" data-count="3">
+          <span class="mode-icon">💼</span>
+          <div class="mode-title">การงาน &amp; การเงิน</div>
+          <div class="mode-desc">เปิด 3 ใบ (สถานการณ์ - อุปสรรค - ทางออก)</div>
+        </div>
+        <div class="mode-card" data-mode="custom" data-count="1">
+          <span class="mode-icon">🔮</span>
+          <div class="mode-title">ถามคำถามในใจ</div>
+          <div class="mode-desc">ตั้งจิตอธิษฐานแล้วเปิดไพ่หาคำตอบ</div>
+        </div>
+      </div>
+
+      <!-- Question Input (shown when custom mode selected) -->
+      <div class="question-box" id="question-box">
+        <input type="text" id="user-question" class="question-input"
+          placeholder="พิมพ์คำถามที่คุณต้องการคำตอบจากไพ่ (เช่น งานนี้ควรเปลี่ยนไหม?)...">
+      </div>
+    </section>
+
+    <!-- Card Selection Deck Area -->
+    <section class="deck-area" id="deck-area">
+      <p class="instruction-text" id="instruction-text">
+        หลับตา สูดหายใจลึกๆ ตั้งจิตให้สงบ แล้วแตะเลือกไพ่
+        <span id="pick-target-count" style="color: var(--gold-primary); font-weight:700;">1</span> ใบ
+      </p>
+
+      <div class="fanned-deck" id="fanned-deck">
+        <!-- Interactive fanned cards injected by app.js -->
+      </div>
+
+      <div class="action-bar">
+        <button id="btn-shuffle" class="btn-primary btn-ghost">
+          <span class="shuffle-icon">🔀</span> สับไพ่ใหม่
+        </button>
+        <button id="btn-reveal" class="btn-primary" disabled>
+          ✨ เปิดไพ่ทำนาย (<span id="selected-counter">0</span>/<span id="required-counter">1</span>)
+        </button>
+      </div>
+    </section>
+
+    <!-- Result & Interpretation Section -->
+    <section class="result-section" id="result-section">
+
+      <!-- Result Header with Quick Reset Button -->
+      <div class="result-header">
+        <div class="result-badge-group">
+          <span class="result-badge">✦ ไพ่ที่คุณเปิดได้ ✦</span>
+        </div>
+        <button id="btn-quick-reset" class="btn-quick-reset" title="สุ่มไพ่ใหม่ / เปิดรอบใหม่">
+          <span class="quick-reset-icon">↺</span> ดูรอบใหม่
+        </button>
+      </div>
+
+      <!-- 3D Card Showcase -->
+      <div class="cards-showcase" id="cards-showcase">
+        <!-- Flipped 3D cards injected here -->
+      </div>
+
+      <!-- Reading Details -->
+      <div class="reading-details" id="reading-details">
+        <!-- Detailed text injected here -->
+      </div>
+
+      <!-- ============================================= -->
+      <!-- DONATION CARD (ระบบค่าครูตามศรัทธา)           -->
+      <!-- ============================================= -->
+      <div class="donation-card" id="donation-card">
+        <div class="donation-badge">🔮 ค่าครูตามศรัทธา</div>
+        <h3 class="donation-title">ร่วมใส่ซองค่าครูตามจิตศรัทธา</h3>
+        <p class="donation-desc">
+          ไม่มีการกำหนดขั้นต่ำ เปิดรับตามกำลังศรัทธาและความสบายใจ
+          เพื่อเปิดทางพลังงานบวกและเป็นกำลังใจให้แม่หมอครับ
+        </p>
+
+        <!-- PromptPay QR Code Canvas -->
+        <div class="qr-container">
+          <div class="promptpay-logo-badge">
+            <span style="font-weight:800;font-size:1.1rem;color:#003764;">Prompt</span><span style="font-weight:800;font-size:1.1rem;color:#0093d5;">Pay</span>
+          </div>
+          <canvas id="qrcode-canvas"></canvas>
+          <div class="qr-amount-display" id="qr-amount-display">✨ สแกนแล้วระบุยอดตามศรัทธาในแอปธนาคาร ✨</div>
+        </div>
+
+        <!-- Account / PromptPay details & Copy -->
+        <div style="margin:0.5rem 0;">
+          <div class="account-info">
+            <span style="color:var(--text-muted);font-size:0.85rem;">พร้อมเพย์:</span>
+            <span class="account-number" id="display-promptpay-number">081-234-5678</span>
+            <button class="btn-copy" id="btn-copy-account">คัดลอก</button>
+          </div>
+        </div>
+
+        <p class="blessing-msg">
+          ✨ "ขอให้ผลบุญแห่งความปรารถนาดี นำพาความสุข โชคลาภ และความสำเร็จมาสู่ชีวิตคุณ" ✨
+        </p>
+      </div>
+
+      <!-- Reset Action -->
+      <div class="reset-bar">
+        <button id="btn-reset-reading" class="btn-primary">
+          <span class="shuffle-icon">🔀</span> สุ่มไพ่ใหม่ / เปิดรอบใหม่
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- PromptPay Settings Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+      <button class="modal-close" id="btn-modal-close">&times;</button>
+      <h3 class="modal-title">⚙️ ตั้งค่าบัญชีรับเงินโดเนท</h3>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.2rem;">
+        ระบุเบอร์พร้อมเพย์ หรือเลขบัตรประชาชนของคุณ เพื่อให้ QR Code รับเงินเข้าบัญชีของคุณโดยตรง
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">เบอร์พร้อมเพย์ หรือ เลขบัตร ปชช. (10 หรือ 13 หลัก)</label>
+        <input type="text" id="input-promptpay-target" class="form-input" placeholder="เช่น 0812345678" maxlength="13">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ชื่อผู้รับ / แม่หมอ (สำหรับแสดงผล)</label>
+        <input type="text" id="input-merchant-name" class="form-input" placeholder="เช่น แม่หมอทาโรต์">
+      </div>
+
+      <div style="text-align:right;margin-top:1.5rem;">
+        <button id="btn-save-settings" class="btn-primary" style="padding:0.6rem 1.5rem;font-size:0.9rem;">
+          บันทึกการตั้งค่า
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="cards-data.js?v=1.3"></script>
+  <script src="promptpay.js?v=1.3"></script>
+  <script src="app.js?v=1.3"></script>
+</body>
+</html>
