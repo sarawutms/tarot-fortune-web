@@ -447,9 +447,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, { passive: true });
 
-  // Donation Elements
-  const btnSaveQR = document.getElementById("btn-save-qr");
-
   // Initialize
   syncSoundToggleUI();
   if (toggleReversed) toggleReversed.checked = reversedMode;
