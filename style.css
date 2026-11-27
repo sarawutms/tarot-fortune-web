@@ -81,29 +81,206 @@ body {
   to { transform: translateY(-500px); }
 }
 
-/* Header & Logo */
+/* Header / Hero — ภาพหัวเว็บโทนเดียวกับภาพปกโซเชียล */
 .app-header {
-  text-align: center;
-  padding: 2.5rem 1rem 1.5rem;
   position: relative;
+  text-align: center;
+  padding: 3.4rem 1rem 2.4rem;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* เนบิวลาม่วง-ทองเรืองแสงด้านหลังชื่อเรื่อง */
+.hero-nebula {
+  position: absolute;
+  top: -150px;
+  left: -12%;
+  right: -12%;
+  height: 540px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 44% 50% at 50% 64%, rgba(243, 156, 18, 0.22), rgba(243, 156, 18, 0) 70%),
+    radial-gradient(ellipse 32% 44% at 16% 42%, rgba(142, 68, 173, 0.36), rgba(142, 68, 173, 0) 72%),
+    radial-gradient(ellipse 32% 44% at 84% 46%, rgba(142, 68, 173, 0.3), rgba(142, 68, 173, 0) 72%),
+    radial-gradient(ellipse 62% 26% at 50% 104%, rgba(94, 46, 148, 0.4), rgba(94, 46, 148, 0) 76%);
+  filter: blur(4px);
+  animation: heroBreathe 15s ease-in-out infinite alternate;
+}
+
+@keyframes heroBreathe {
+  from { opacity: 0.72; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.07); }
+}
+
+/* ผงดาวทอง */
+.hero-dust {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.6px 1.6px at 12% 68%, #ffe9a8, transparent),
+    radial-gradient(1.4px 1.4px at 26% 26%, #ffffff, transparent),
+    radial-gradient(2px 2px at 41% 80%, #f5b041, transparent),
+    radial-gradient(1.2px 1.2px at 58% 18%, #ffffff, transparent),
+    radial-gradient(1.8px 1.8px at 72% 60%, #ffe9a8, transparent),
+    radial-gradient(1.4px 1.4px at 87% 32%, #ffffff, transparent),
+    radial-gradient(1.6px 1.6px at 93% 76%, #f5b041, transparent),
+    radial-gradient(1.2px 1.2px at 7% 30%, #fff6d8, transparent);
+  animation: heroTwinkle 6s ease-in-out infinite alternate;
+}
+
+@keyframes heroTwinkle {
+  from { opacity: 0.45; }
+  to { opacity: 0.95; }
+}
+
+/* เส้นกลุ่มดาวสองข้างของชื่อเรื่อง */
+.hero-constellation {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.6;
+  -webkit-mask-image: radial-gradient(ellipse 72% 88% at 50% 50%, #000 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 88% at 50% 50%, #000 52%, transparent 100%);
+}
+
+.hero-const-line polyline {
+  stroke-dasharray: 6 9;
+  animation: heroConstDash 26s linear infinite;
+}
+
+@keyframes heroConstDash {
+  to { stroke-dashoffset: -300; }
+}
+
+.hero-const-stars circle {
+  animation: heroStarPulse 4.5s ease-in-out infinite alternate;
+}
+
+.hero-const-stars circle:nth-child(2n) { animation-delay: -1.6s; }
+.hero-const-stars circle:nth-child(3n) { animation-delay: -3.1s; }
+
+@keyframes heroStarPulse {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+/* กรอบมุมทองแบบภาพปก */
+.hero-corners {
+  position: absolute;
+  inset: 12px 14px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.hero-corners span {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(245, 176, 65, 0.45);
+}
+
+.hero-corners span:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
+.hero-corners span:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
+.hero-corners span:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 10px; }
+.hero-corners span:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+
+/* ตราพระจันทร์เสี้ยว + ดาวสี่แฉก */
+.hero-emblem {
+  position: relative;
+  z-index: 1;
+  width: 94px;
+  height: 94px;
+  margin: 0 auto 0.4rem;
+  filter: drop-shadow(0 0 16px rgba(243, 156, 18, 0.42));
+  animation: heroEmblemFloat 7.5s ease-in-out infinite;
+}
+
+.hero-emblem svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes heroEmblemFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
 }
 
 .app-title {
+  position: relative;
+  z-index: 1;
   font-family: 'Cinzel', serif;
-  font-size: 2.2rem;
-  letter-spacing: 2px;
-  background: var(--gold-gradient);
+  font-size: clamp(1.7rem, 6.2vw, 2.55rem);
+  font-weight: 900;
+  line-height: 1.18;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  background: linear-gradient(100deg, #f9e79f 0%, #f5b041 30%, #fff4c8 48%, #e8971f 66%, #f7dc6f 100%);
+  background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
-  margin-bottom: 0.3rem;
+  filter: drop-shadow(0 2px 12px rgba(243, 156, 18, 0.35));
+  margin-bottom: 0.55rem;
+  animation: heroTitleSheen 9s ease-in-out infinite;
+}
+
+@keyframes heroTitleSheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.hero-divider {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  max-width: 300px;
+  margin: 0 auto 0.7rem;
+}
+
+.hero-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245, 176, 65, 0.6), transparent);
+}
+
+.hero-divider-gem {
+  font-size: 0.78rem;
+  line-height: 1;
+  color: #f7dc6f;
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.75);
 }
 
 .app-subtitle {
-  color: var(--text-muted);
-  font-size: 0.95rem;
+  position: relative;
+  z-index: 1;
+  color: #cfd5ea;
+  font-size: 0.92rem;
   font-weight: 300;
+  letter-spacing: 0.01em;
+  max-width: 32ch;
+  margin: 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-nebula,
+  .hero-dust,
+  .hero-emblem,
+  .app-title,
+  .hero-const-line polyline,
+  .hero-const-stars circle {
+    animation: none !important;
+  }
 }
 
 /* Settings Trigger Button */
@@ -1250,8 +1427,22 @@ body {
 
 /* Responsive */
 @media (max-width: 600px) {
+  .hero-emblem {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 0.25rem;
+  }
   .app-title {
-    font-size: 1.8rem;
+    font-size: clamp(1.35rem, 7vw, 2rem);
+    letter-spacing: 0.07em;
+    text-indent: 0.07em;
+  }
+  .hero-corners {
+    inset: 8px 10px;
+  }
+  .hero-corners span {
+    width: 24px;
+    height: 24px;
   }
   .fanned-deck {
     min-height: 200px;

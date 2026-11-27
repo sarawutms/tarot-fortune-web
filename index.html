@@ -34,7 +34,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Prompt:wght@300;400;500;600;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=3.5">
+  <link rel="stylesheet" href="style.css?v=3.6">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -42,13 +42,68 @@
   <!-- Background Stars Animation -->
   <div class="stars-bg"></div>
 
-  <!-- Header -->
+  <!-- Header / Hero -->
   <header class="app-header">
+    <div class="hero-nebula" aria-hidden="true"></div>
+    <div class="hero-dust" aria-hidden="true"></div>
+    <svg class="hero-constellation" viewBox="0 0 900 320" preserveAspectRatio="none" aria-hidden="true">
+      <g class="hero-const-line" fill="none" stroke="url(#heroGoldLine)" stroke-width="0.7">
+        <polyline points="40,150 120,96 196,140 154,212 62,196 40,150" />
+        <polyline points="120,96 168,54" />
+        <polyline points="196,140 258,104" />
+        <polyline points="860,158 782,104 706,148 748,220 840,204 860,158" />
+        <polyline points="782,104 734,60" />
+        <polyline points="706,148 644,110" />
+      </g>
+      <g class="hero-const-stars" fill="#fdf3d0">
+        <circle cx="40" cy="150" r="2.1" /><circle cx="120" cy="96" r="2.6" /><circle cx="196" cy="140" r="2" />
+        <circle cx="154" cy="212" r="1.8" /><circle cx="62" cy="196" r="1.6" /><circle cx="168" cy="54" r="1.5" />
+        <circle cx="258" cy="104" r="1.4" />
+        <circle cx="860" cy="158" r="2.1" /><circle cx="782" cy="104" r="2.6" /><circle cx="706" cy="148" r="2" />
+        <circle cx="748" cy="220" r="1.8" /><circle cx="840" cy="204" r="1.6" /><circle cx="734" cy="60" r="1.5" />
+        <circle cx="644" cy="110" r="1.4" />
+      </g>
+      <defs>
+        <linearGradient id="heroGoldLine" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f7dc6f" stop-opacity="0.9" />
+          <stop offset="100%" stop-color="#f39c12" stop-opacity="0.35" />
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <div class="hero-corners" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+    </div>
+
     <button id="btn-sound-toggle" class="settings-trigger sound-trigger" title="เปิด/ปิดเสียงประกอบ" aria-label="เปิดหรือปิดเสียงประกอบ" aria-pressed="true">
       🔊
     </button>
+
+    <div class="hero-emblem" aria-hidden="true">
+      <svg viewBox="0 0 140 140" role="presentation">
+        <defs>
+          <linearGradient id="heroGold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f9e79f" />
+            <stop offset="45%" stop-color="#f5b041" />
+            <stop offset="100%" stop-color="#c47a12" />
+          </linearGradient>
+        </defs>
+        <circle cx="70" cy="70" r="50" fill="none" stroke="url(#heroGold)" stroke-width="1.4" opacity="0.85" />
+        <circle cx="70" cy="70" r="44" fill="none" stroke="url(#heroGold)" stroke-width="0.6" stroke-dasharray="1.5 5" opacity="0.55" />
+        <path d="M42 44a24 24 0 1 0 0 52 30 30 0 0 1 0-52z" fill="url(#heroGold)" opacity="0.95" />
+        <path d="M98 44a24 24 0 1 1 0 52 30 30 0 0 0 0-52z" fill="url(#heroGold)" opacity="0.6" />
+        <path d="M70 46l5.5 18.5L94 70l-18.5 5.5L70 94l-5.5-18.5L46 70l18.5-5.5z" fill="url(#heroGold)" />
+        <circle cx="70" cy="70" r="3" fill="#fff6d8" />
+      </svg>
+    </div>
+
     <h1 class="app-title">TAROT SANCTUARY</h1>
-    <p class="app-subtitle">✦ ไพ่ทาโรต์นำทางชีวิต เปิดใจรับสารจากจักรวาล ✦</p>
+    <div class="hero-divider" aria-hidden="true">
+      <span class="hero-divider-line"></span>
+      <span class="hero-divider-gem">✦</span>
+      <span class="hero-divider-line"></span>
+    </div>
+    <p class="app-subtitle">ไพ่ทาโรต์นำทางชีวิต เปิดใจรับสารจากจักรวาล</p>
   </header>
 
   <main class="container">
