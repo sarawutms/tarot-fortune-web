@@ -1173,6 +1173,16 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.closePath();
   }
 
+  function getShareUrlText() {
+    try {
+      if (typeof location !== "undefined" && location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        const cleanPath = location.pathname ? location.pathname.replace(/\/$/, "") : "";
+        return location.host + cleanPath;
+      }
+    } catch (e) { /* ignore */ }
+    return "sarawutms.github.io/tarot-fortune-web";
+  }
+
   function splitGraphemes(text) {
     const value = String(text || "");
     try {
@@ -1662,18 +1672,24 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       dateText = new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
     } catch (e) { /* locale ไม่รองรับ */ }
-    ctx.fillStyle = "#9aa3c0";
-    ctx.font = "400 21px Prompt, 'Segoe UI', sans-serif";
+    ctx.fillStyle = "#a8b2d1";
+    ctx.font = "400 22px Prompt, 'Segoe UI', sans-serif";
     ctx.fillText("ไพ่ทาโรต์นำทางชีวิต" + (dateText ? " · อ่านเมื่อ " + dateText : ""), W / 2, H - 84);
 
-    // บรรทัดชวนเล่นต่อ — ทุกครั้งที่ภาพถูกแชร์ต่อคือช่องทางกลับมาเว็บ
-    const cta = "เปิดไพ่ของคุณเองฟรี";
-    ctx.font = "600 26px Prompt, 'Segoe UI', sans-serif";
+    // บรรทัดชวนเล่นต่อ + ลิงก์เว็บสำหรับแชร์ลงโซเชียล (จัดให้พอดีทั้งบนสตอรี่และโพสต์)
+    const shareUrl = getShareUrlText();
+    const cta = `เปิดไพ่ของคุณเองฟรี ✨ ${shareUrl}`;
+    let ctaSize = 22;
+    ctx.font = `600 ${ctaSize}px Prompt, 'Segoe UI', sans-serif`;
+    while (ctaSize > 15 && ctx.measureText(cta).width > W - 120) {
+      ctaSize -= 1;
+      ctx.font = `600 ${ctaSize}px Prompt, 'Segoe UI', sans-serif`;
+    }
     const ctaW = ctx.measureText(cta).width;
     ctx.fillStyle = "#f7dc6f";
     ctx.fillText(cta, W / 2, H - 44);
-    drawSparkle(ctx, W / 2 - ctaW / 2 - 26, H - 54, 8, "#f5b041");
-    drawSparkle(ctx, W / 2 + ctaW / 2 + 26, H - 54, 8, "#f5b041");
+    drawSparkle(ctx, W / 2 - ctaW / 2 - 24, H - 52, 8, "#f5b041");
+    drawSparkle(ctx, W / 2 + ctaW / 2 + 24, H - 52, 8, "#f5b041");
 
     return canvas;
   }
@@ -1872,9 +1888,16 @@ document.addEventListener("DOMContentLoaded", () => {
     drawSparkle(ctx, W / 2 + brandW / 2 + 26, H - 76, 10, "#f5b041");
     ctx.fillText("TAROT SANCTUARY", W / 2, H - 64);
 
+    const shareUrl = getShareUrlText();
+    const squareCta = `เปิดไพ่ฟรี ✨ ${shareUrl}`;
+    let squareCtaSize = 19;
+    ctx.font = `600 ${squareCtaSize}px Prompt, 'Segoe UI', sans-serif`;
+    while (squareCtaSize > 13 && ctx.measureText(squareCta).width > W - 100) {
+      squareCtaSize -= 1;
+      ctx.font = `600 ${squareCtaSize}px Prompt, 'Segoe UI', sans-serif`;
+    }
     ctx.fillStyle = "#f7dc6f";
-    ctx.font = "600 20px Prompt, 'Segoe UI', sans-serif";
-    ctx.fillText("เปิดไพ่ของคุณเองฟรี", W / 2, H - 30);
+    ctx.fillText(squareCta, W / 2, H - 28);
 
     return canvas;
   }
