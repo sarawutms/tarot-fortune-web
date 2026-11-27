@@ -1361,6 +1361,61 @@ document.addEventListener("DOMContentLoaded", () => {
     return gold;
   }
 
+  // ออร่าวงแหวนหลังไพ่ ทำให้ไพ่ลอยออกมาจากพื้นหลังไม่แบน
+  function drawShareAura(ctx, cx, cy, radius) {
+    const aura = ctx.createRadialGradient(cx, cy, radius * 0.1, cx, cy, radius);
+    aura.addColorStop(0, "rgba(142,68,173,0.42)");
+    aura.addColorStop(0.55, "rgba(120,66,180,0.16)");
+    aura.addColorStop(1, "rgba(120,66,180,0)");
+    ctx.save();
+    ctx.fillStyle = aura;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.restore();
+  }
+
+  // กรอบมุมทอง (corner brackets) — ให้ภาพดูเป็นกรอบเหมือนการ์ดจริง
+  // ใช้เฉพาะมุมแทนกรอบเส้นเต็ม เพื่อไม่ให้เส้นตัดผ่านข้อความ footer
+  function drawShareFrame(ctx, W, H) {
+    const inset = 26;
+    const arm = 86;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(245,176,65,0.42)";
+    ctx.lineWidth = 2.5;
+    [[inset, inset, 1, 1], [W - inset, inset, -1, 1], [inset, H - inset, 1, -1], [W - inset, H - inset, -1, -1]]
+      .forEach(([x, y, dx, dy]) => {
+        ctx.beginPath();
+        ctx.moveTo(x, y + dy * arm);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + dx * arm, y);
+        ctx.stroke();
+        drawSparkle(ctx, x + dx * 42, y + dy * 42, 4, "rgba(247,220,111,0.55)");
+      });
+    ctx.restore();
+  }
+
+  // เส้นคั่นประดับ (เพชรกลาง + ประกายสองข้าง) เติมช่องว่างระหว่างเนื้อหากับแถบมงคล
+  function drawShareOrnament(ctx, W, y) {
+    const half = 200;
+    const inner = 34;
+    const drawSide = dir => {
+      const grad = ctx.createLinearGradient(W / 2 + dir * inner, 0, W / 2 + dir * half, 0);
+      grad.addColorStop(0, "rgba(245,176,65,0.55)");
+      grad.addColorStop(1, "rgba(245,176,65,0)");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 + dir * inner, y);
+      ctx.lineTo(W / 2 + dir * half, y);
+      ctx.stroke();
+    };
+    drawSide(-1);
+    drawSide(1);
+    drawDiamond(ctx, W / 2, y, 10, "rgba(247,220,111,0.95)");
+    drawSparkle(ctx, W / 2 - 46, y, 5, "rgba(245,176,65,0.75)");
+    drawSparkle(ctx, W / 2 + 46, y, 5, "rgba(245,176,65,0.75)");
+  }
+
   function paintReadingBackground(ctx, W, H, reading, starCount = 150) {
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, "#0a0b18");
@@ -1373,7 +1428,9 @@ document.addEventListener("DOMContentLoaded", () => {
     glow.addColorStop(0, "rgba(142,68,173,0.4)");
     glow.addColorStop(1, "rgba(142,68,173,0)");
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H * 0.57);
+    // เต็มผืนภาพ: ปล่อยให้ radial gradient จางเอง ไม่ตัดด้วย fillRect
+    // (เดิมตัดที่ H*0.57 ทำให้เกิดเส้นรอยต่อคม ๆ พาดขวางภาพ)
+    ctx.fillRect(0, 0, W, H);
 
     // ดาวแบบ seeded — ผลไพ่เดิมได้รูปเดิมทุกครั้งที่แชร์
     let seed = 2166136261;
@@ -1394,6 +1451,28 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // กลุ่มดาวจาง ๆ เติมพื้นที่ว่างให้ภาพมีมิติ (ตำแหน่งคงที่ตามไพ่ที่ได้)
+    ctx.save();
+    ctx.strokeStyle = "rgba(196,178,245,0.13)";
+    ctx.lineWidth = 1.4;
+    ctx.fillStyle = "rgba(226,216,255,0.42)";
+    for (let c = 0; c < 3; c++) {
+      const cx0 = rand() * W;
+      const cy0 = rand() * H;
+      const n = 5 + Math.floor(rand() * 3);
+      const pts = [];
+      for (let i = 0; i < n; i++) pts.push([cx0 + (rand() - 0.5) * 250, cy0 + (rand() - 0.5) * 210]);
+      ctx.beginPath();
+      pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.stroke();
+      pts.forEach(([px, py]) => {
+        ctx.beginPath();
+        ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    ctx.restore();
   }
 
   // พระจันทร์เสี้ยว + ดาว = เครื่องหมายแบรนด์ (วาดด้วย path เงื่อนไขเดียวกับไอคอนอื่น)
@@ -1553,16 +1632,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const cards = reading.cards || [];
     const count = cards.length || 1;
     // ไพ่ 3 ใบใช้รูปเล็กลง เพื่อเหลือพื้นที่ให้ข้อความเต็มความกว้างด้านล่าง
-    const cardW = count === 1 ? 420 : 220;
+    const cardW = count === 1 ? 452 : 220;
     const cardH = Math.round(cardW * 1.66);
     const gap = count === 1 ? 0 : 30;
     const totalW = count * cardW + (count - 1) * gap;
     const startX = (W - totalW) / 2;
-    const cardY = Math.max(cursorY + 26, count === 1 ? 300 : 276);
+    const cardY = Math.max(cursorY + 22, count === 1 ? 268 : 276);
 
     const images = includeImages
       ? await Promise.all(cards.map(c => loadShareImage(c.image)))
       : cards.map(() => null);
+
+    drawShareAura(ctx, W / 2, cardY + cardH / 2, Math.max(cardH * 0.78, totalW * 0.72));
 
     cards.forEach((card, i) => {
       const x = startX + i * (cardW + gap);
@@ -1594,7 +1675,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const adviceLabelSize = count === 1 ? 22 : 20;
     const textLeft = 90;
     const textW = W - textLeft * 2;
-    const textTop = cardY + cardH + (count === 1 ? 126 : 50);
+    const textTop = cardY + cardH + (count === 1 ? 132 : 50);
     const dividerGap = count === 1 ? 50 : 36;
     const afterMeaning = count === 1 ? 20 : 18;
 
@@ -1733,6 +1814,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // (ไม่ใช้ emoji ใน canvas เพราะ emoji ทำให้บรรทัดเยื้องออกจากศูนย์)
     const luckyCard = cards[0] || {};
     const luckyY = Math.max(y + 76, H - 292);
+    // ถ้ายังเหลือช่องว่างมาก ใส่เส้นคั่นประดับกลางช่องนั้นแทนที่จะปล่อยโล่ง
+    if (luckyY - y > 120) drawShareOrnament(ctx, W, y + (luckyY - y) / 2);
     const luckyFont = "600 28px Prompt, 'Segoe UI', sans-serif";
     const luckyColorText = "สีมงคล: " + (luckyCard.luckyColor || "-");
     const luckyNumberText = "เลขนำโชค: " + (luckyCard.luckyNumber || "-");
@@ -1785,6 +1868,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillText(cta, W / 2, H - 44);
     drawSparkle(ctx, W / 2 - ctaW / 2 - 24, H - 52, 8, "#f5b041");
     drawSparkle(ctx, W / 2 + ctaW / 2 + 24, H - 52, 8, "#f5b041");
+    drawShareFrame(ctx, W, H);
 
     return canvas;
   }
@@ -1801,20 +1885,21 @@ document.addEventListener("DOMContentLoaded", () => {
     paintReadingBackground(ctx, W, H, reading, 90);
 
     const gold = goldGradient(ctx, W);
-    drawSigil(ctx, W / 2, 44, 20, gold);
+    // เว้นขอบบนให้กรอบทองไม่ทับตราสัญลักษณ์
+    drawSigil(ctx, W / 2, 58, 20, gold);
 
     ctx.textAlign = "center";
     ctx.fillStyle = gold;
     ctx.font = "700 40px Cinzel, Georgia, serif";
-    ctx.fillText("TAROT SANCTUARY", W / 2, 92);
+    ctx.fillText("TAROT SANCTUARY", W / 2, 106);
 
     ctx.fillStyle = "#c9b8e8";
     ctx.font = "400 22px Prompt, 'Segoe UI', sans-serif";
-    ctx.fillText(MODE_LABELS[reading.mode] || "ไพ่ทำนาย", W / 2, 124);
+    ctx.fillText(MODE_LABELS[reading.mode] || "ไพ่ทำนาย", W / 2, 138);
 
     const cards = reading.cards || [];
     const count = cards.length || 1;
-    let cursorY = 154;
+    let cursorY = 168;
     if (reading.question) {
       ctx.fillStyle = "#f7dc6f";
       ctx.font = "italic 400 21px Prompt, 'Segoe UI', sans-serif";
@@ -1828,11 +1913,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const gap = count === 1 ? 0 : 26;
     const totalW = count * cardW + (count - 1) * gap;
     const startX = (W - totalW) / 2;
-    const cardY = Math.max(cursorY + 10, 156);
+    const cardY = Math.max(cursorY + 10, 174);
 
     const images = includeImages
       ? await Promise.all(cards.map(c => loadShareImage(c.image)))
       : cards.map(() => null);
+
+    drawShareAura(ctx, W / 2, cardY + cardH / 2, Math.max(cardH * 0.82, totalW * 0.78));
 
     cards.forEach((card, i) => {
       drawShareCard(ctx, card, images[i], startX + i * (cardW + gap), cardY, cardW, cardH, count === 1 ? 0.9 : 0.62);
@@ -1957,6 +2044,9 @@ document.addEventListener("DOMContentLoaded", () => {
       y = adviceTop + (Math.max(1, block.adviceLines.length) - 1) * layout.lineH;
     });
 
+    // ถ้าเหลือช่องว่างเกินไป ใส่เส้นคั่นประดับกลางช่องระหว่างเนื้อหากับแถบมงคล
+    if (H - 150 - y > 56) drawShareOrnament(ctx, W, y + (H - 150 - y) / 2);
+
     // แถบปิดท้ายแบบย่อ: สีมงคล · เลขนำโชค + เส้นคั่น + โลโก้ + CTA
     // จัดกึ่งกลางทั้งกลุ่มจากการวัดความกว้างจริง รวมไอคอนที่วาดเอง (ไม่มี emoji ใน canvas)
     const luckyCard = cards[0] || {};
@@ -2012,6 +2102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     ctx.fillStyle = "#f7dc6f";
     ctx.fillText(squareCta, W / 2, H - 28);
+    drawShareFrame(ctx, W, H);
 
     return canvas;
   }
